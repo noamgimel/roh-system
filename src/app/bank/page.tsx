@@ -82,7 +82,7 @@ export default async function BankPage() {
                 <tr>
                   <th className="text-right px-3 py-2.5 font-medium">תאריך</th>
                   <th className="text-right px-3 py-2.5 font-medium">תיאור</th>
-                  <th className="text-right px-3 py-2.5 font-medium">פרטים</th>
+                  <th className="text-right px-3 py-2.5 font-medium">משלם</th>
                   <th className="text-right px-3 py-2.5 font-medium">סכום</th>
                   <th className="text-right px-3 py-2.5 font-medium">סטטוס</th>
                   <th className="text-right px-3 py-2.5 font-medium"></th>
@@ -104,8 +104,24 @@ export default async function BankPage() {
                         {formatDate(t.txnDate)}
                       </td>
                       <td className="px-3 py-2.5">{(t.description as string) ?? "—"}</td>
-                      <td className="px-3 py-2.5 text-slate-600 max-w-md truncate">
-                        {(t.details as string) ?? "—"}
+                      <td className="px-3 py-2.5 max-w-md">
+                        {t.parsedPayerName ? (
+                          <span title={(t.details as string) ?? undefined}>
+                            {t.parsedPayerName as string}
+                            {t.parsedBankKey ? (
+                              <span className="text-xs text-slate-400 mr-1" dir="ltr">
+                                ({t.parsedBankKey as string})
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          <span
+                            className="text-slate-400"
+                            title={(t.details as string) ?? undefined}
+                          >
+                            לא זוהה משלם
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">
                         {formatMoney(t.credit)}

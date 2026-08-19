@@ -14,6 +14,9 @@ interface PreviewRow {
   credit: string;
   disposition: "new" | "duplicate" | "ignored";
   ignoredReason: string | null;
+  payerName: string | null;
+  bankKey: string | null;
+  purpose: string | null;
 }
 
 interface Preview {
@@ -159,7 +162,7 @@ export default function BankUpload() {
                 <tr>
                   <th className="text-right px-3 py-2 font-medium">תאריך</th>
                   <th className="text-right px-3 py-2 font-medium">תיאור</th>
-                  <th className="text-right px-3 py-2 font-medium">פרטים</th>
+                  <th className="text-right px-3 py-2 font-medium">משלם</th>
                   <th className="text-right px-3 py-2 font-medium">סכום</th>
                   <th className="text-right px-3 py-2 font-medium">סיווג</th>
                 </tr>
@@ -173,8 +176,27 @@ export default function BankUpload() {
                         {fmtDate(r.txnDate)}
                       </td>
                       <td className="px-3 py-2">{r.description ?? "—"}</td>
-                      <td className="px-3 py-2 text-slate-600 max-w-md truncate">
-                        {r.details ?? "—"}
+                      <td className="px-3 py-2 max-w-md">
+                        {r.payerName ? (
+                          <span title={r.details ?? undefined}>
+                            {r.payerName}
+                            {r.bankKey && (
+                              <span
+                                className="text-xs text-slate-400 mr-1"
+                                dir="ltr"
+                              >
+                                ({r.bankKey})
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span
+                            className="text-slate-400"
+                            title={r.details ?? undefined}
+                          >
+                            לא זוהה משלם
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 tabular-nums whitespace-nowrap">
                         ₪{Number(r.credit).toLocaleString("he-IL")}

@@ -12,7 +12,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fixtures": "tsx scripts/make-fixtures.ts"
+    "fixtures": "tsx scripts/make-fixtures.ts",
+    "reparse": "tsx scripts/reparse-payers.ts"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

@@ -1,6 +1,7 @@
 import type { Sql } from "postgres";
 import type { ParsedBankFile, BankCsvRow } from "./csv";
 import { autoExclusionReason } from "./rules";
+import { parsePayerDetails } from "./payerParse";
 import { writeAudit } from "@/lib/audit";
 
 // קליטת דף חשבון — כלל ברזל 4: המערכת לא סומכת על הבנק, היא סומכת
@@ -14,6 +15,9 @@ export interface BankPreviewRow {
   credit: string;
   disposition: "new" | "duplicate" | "ignored";
   ignoredReason: string | null;
+  payerName: string | null; // חולץ משדה "פרטים"; null = לתור הידני
+  bankKey: string | null;
+  purpose: string | null;
 }
 
 export interface BankPreview {
@@ -63,6 +67,7 @@ export async function previewBankFile(
       ignoredReason = autoExclusionReason(r);
       if (ignoredReason) disposition = "ignored";
     }
+    const payer = parsePayerDetails(r.details);
     return {
       rowNumber: r.rowNumber,
       txnDate: r.txnDate,
@@ -71,6 +76,9 @@ export async function previewBankFile(
       credit: r.credit,
       disposition,
       ignoredReason,
+      payerName: payer?.payerName ?? null,
+      bankKey: payer?.bankKey ?? null,
+      purpose: payer?.purpose ?? null,
     };
   });
 
@@ -127,11 +135,14 @@ export async function commitBankFile(
       await tx`
         insert into bank_transactions
           (row_hash, batch_id, txn_date, value_date, description, details,
-           account, reference, credit, balance_after, status, ignored_reason)
+           account, reference, credit, balance_after,
+           parsed_payer_name, parsed_bank_key, parsed_purpose,
+           status, ignored_reason)
         values
           (${r.rowHash}, ${batch.id as string}, ${r.txnDate}, ${r.valueDate},
            ${r.description}, ${r.details}, ${r.account}, ${r.reference},
            ${r.credit}, ${r.balanceAfter},
+           ${p.payerName}, ${p.bankKey}, ${p.purpose},
            ${p.disposition === "ignored" ? "ignored" : "new"},
            ${p.ignoredReason})
         on conflict (row_hash) do nothing
