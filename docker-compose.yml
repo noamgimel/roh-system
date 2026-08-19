@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: roh-db
+    environment:
+      POSTGRES_USER: roh
+      POSTGRES_PASSWORD: roh
+      POSTGRES_DB: roh
+    ports:
+      - "54329:5432"
+    volumes:
+      - roh-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roh -d roh"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  # בסיס נתונים נפרד לבדיקות — נמחק ונבנה מחדש בכל ריצה
+  db-test:
+    image: postgres:16-alpine
+    container_name: roh-db-test
+    environment:
+      POSTGRES_USER: roh
+      POSTGRES_PASSWORD: roh
+      POSTGRES_DB: roh_test
+    ports:
+      - "54330:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roh -d roh_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+volumes:
+  roh-db-data:

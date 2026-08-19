@@ -1,0 +1,71 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { sql } from "@/lib/db";
+import {
+  createClient,
+  updateClient,
+  type ClientInput,
+} from "@/lib/clients/repo";
+import { CURRENT_ACTOR } from "@/lib/format";
+
+function str(fd: FormData, name: string): string | null {
+  const v = fd.get(name);
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t || null;
+}
+
+function num(fd: FormData, name: string): number | null {
+  const s = str(fd, name);
+  if (s === null) return null;
+  const n = Number(s.replace(/[^\d.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function formToInput(fd: FormData): ClientInput {
+  return {
+    taxId: str(fd, "taxId") ?? "",
+    name: str(fd, "name") ?? "",
+    activity: str(fd, "activity"),
+    entityType: str(fd, "entityType"),
+    withholdingFile: str(fd, "withholdingFile"),
+    spouseName: str(fd, "spouseName"),
+    spouseTaxId: str(fd, "spouseTaxId"),
+    vatFrequency: str(fd, "vatFrequency"),
+    ni102Frequency: str(fd, "ni102Frequency"),
+    tax102Frequency: str(fd, "tax102Frequency"),
+    advancesRate: num(fd, "advancesRate"),
+    advancesFrequency: str(fd, "advancesFrequency"),
+    permissions: str(fd, "permissions"),
+    phone: str(fd, "phone"),
+    email: str(fd, "email"),
+    clientType: (str(fd, "clientType") as "קבוע" | "מזדמן") ?? "קבוע",
+    rate: num(fd, "rate"),
+    openingBalance: num(fd, "openingBalance") ?? 0,
+    isActive: fd.get("isActive") !== null,
+    notes: str(fd, "notes"),
+  };
+}
+
+export async function createClientAction(fd: FormData) {
+  const input = formToInput(fd);
+  const created = await createClient(sql, input, CURRENT_ACTOR);
+  revalidatePath("/clients");
+  redirect(`/clients/${created.id}`);
+}
+
+export async function updateClientAction(id: string, fd: FormData) {
+  const input = formToInput(fd);
+  await updateClient(sql, id, input, CURRENT_ACTOR);
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${id}`);
+  redirect(`/clients/${id}`);
+}
+
+export async function toggleActiveAction(id: string, isActive: boolean) {
+  await updateClient(sql, id, { isActive }, CURRENT_ACTOR);
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${id}`);
+}
