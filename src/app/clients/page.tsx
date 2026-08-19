@@ -102,7 +102,8 @@ export default async function ClientsPage({
                     {c.name as string}
                   </Link>
                 </td>
-                <td className="px-4 py-3 tabular-nums" dir="ltr">
+                {/* dir=ltr לספרות, אבל היישור נשאר לימין כמו הכותרת */}
+                <td className="px-4 py-3 tabular-nums text-right" dir="ltr">
                   {c.taxId as string}
                 </td>
                 <td className="px-4 py-3">{c.clientType as string}</td>

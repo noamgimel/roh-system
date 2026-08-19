@@ -8,6 +8,7 @@ import {
   updateClient,
   type ClientInput,
 } from "@/lib/clients/repo";
+import { createManualCharge } from "@/lib/charges/engine";
 import { CURRENT_ACTOR } from "@/lib/format";
 
 function str(fd: FormData, name: string): string | null {
@@ -62,6 +63,26 @@ export async function updateClientAction(id: string, fd: FormData) {
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
   redirect(`/clients/${id}`);
+}
+
+export async function createChargeAction(clientId: string, fd: FormData) {
+  const amount = num(fd, "amount");
+  const chargeDate = str(fd, "chargeDate");
+  if (amount === null || !chargeDate) {
+    throw new Error("סכום ותאריך הם שדות חובה");
+  }
+  await createManualCharge(
+    sql,
+    {
+      clientId,
+      amount,
+      chargeDate,
+      description: str(fd, "description"),
+    },
+    CURRENT_ACTOR
+  );
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/balances");
 }
 
 export async function toggleActiveAction(id: string, isActive: boolean) {

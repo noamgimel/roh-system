@@ -15,7 +15,7 @@ const NAV = [
   { href: "/import", label: "ייבוא אקסל" },
   { href: "/bank", label: "קליטת דף חשבון" },
   { href: "/queue", label: "תור אישורים", disabled: true },
-  { href: "/balances", label: "יתרות", disabled: true },
+  { href: "/balances", label: "יתרות" },
   { href: "/documents", label: "מסמכים", disabled: true },
   { href: "/audit", label: "יומן ביקורת", disabled: true },
 ];

@@ -4,6 +4,7 @@ import BackLink from "@/components/BackLink";
 import { sql } from "@/lib/db";
 import { getClient } from "@/lib/clients/repo";
 import { formatMoney, formatDate } from "@/lib/format";
+import { createChargeAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +107,48 @@ export default async function ClientCardPage({
 
       <div className="grid grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="font-semibold mb-4">היסטוריית חיובים</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">היסטוריית חיובים</h2>
+          </div>
+          {/* חיוב חד-פעמי ידני — בעיקר ללקוח מזדמן כשמסופק שירות */}
+          <form
+            action={createChargeAction.bind(null, id)}
+            className="flex items-end gap-2 mb-4 pb-4 border-b border-slate-100"
+          >
+            <label className="block flex-1">
+              <span className="block text-xs text-slate-500 mb-1">סכום (₪)</span>
+              <input
+                type="number"
+                name="amount"
+                step="0.01"
+                min="0.01"
+                required
+                dir="ltr"
+                className="w-full px-2 py-1.5 rounded-md border border-slate-300 text-sm text-right"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs text-slate-500 mb-1">תאריך</span>
+              <input
+                type="date"
+                name="chargeDate"
+                required
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                className="px-2 py-1.5 rounded-md border border-slate-300 text-sm"
+              />
+            </label>
+            <label className="block flex-1">
+              <span className="block text-xs text-slate-500 mb-1">תיאור</span>
+              <input
+                type="text"
+                name="description"
+                className="w-full px-2 py-1.5 rounded-md border border-slate-300 text-sm"
+              />
+            </label>
+            <button className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700">
+              הוסף חיוב
+            </button>
+          </form>
           {charges.length === 0 ? (
             <div className="text-sm text-slate-500">אין חיובים עדיין</div>
           ) : (

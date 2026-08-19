@@ -72,7 +72,9 @@ export default async function BankPage() {
                 {batches.map((b) => (
                   <tr key={b.id as string} className="border-t border-slate-100">
                     <td className="px-4 py-2.5">{formatDate(b.createdAt)}</td>
-                    <td className="px-4 py-2.5" dir="ltr">{b.fileName as string}</td>
+                    <td className="px-4 py-2.5 text-right" dir="ltr">
+                      {b.fileName as string}
+                    </td>
                     <td className="px-4 py-2.5 whitespace-nowrap">
                       {formatDate(b.rangeFrom)} – {formatDate(b.rangeTo)}
                     </td>
