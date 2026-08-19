@@ -11,7 +11,8 @@
     "db:down": "docker compose down",
     "db:migrate": "tsx scripts/migrate.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fixtures": "tsx scripts/make-fixtures.ts"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

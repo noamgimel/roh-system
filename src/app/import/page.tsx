@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import BackLink from "@/components/BackLink";
 
 interface PreviewData {
   fileName: string;
@@ -92,6 +93,7 @@ export default function ImportPage() {
 
   return (
     <div>
+      <BackLink href="/clients" label="רשימת הלקוחות" />
       <h1 className="text-2xl font-bold mb-2">ייבוא לקוחות מאקסל</h1>
       <p className="text-sm text-slate-500 mb-6 max-w-2xl">
         האקסל של המשרד הוא מקור האמת — המערכת מייבאת ומייצאת, לא מחליפה.

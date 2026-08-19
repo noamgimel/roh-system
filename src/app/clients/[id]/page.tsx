@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import BackLink from "@/components/BackLink";
 import { sql } from "@/lib/db";
 import { getClient } from "@/lib/clients/repo";
 import { formatMoney, formatDate } from "@/lib/format";
@@ -37,6 +38,7 @@ export default async function ClientCardPage({
 
   return (
     <div>
+      <BackLink href="/clients" label="רשימת הלקוחות" />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{client.name as string}</h1>

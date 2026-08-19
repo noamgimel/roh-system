@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const NAV = [
   { href: "/clients", label: "לקוחות" },
   { href: "/import", label: "ייבוא אקסל" },
-  { href: "/bank", label: "קליטת דף חשבון", disabled: true },
+  { href: "/bank", label: "קליטת דף חשבון" },
   { href: "/queue", label: "תור אישורים", disabled: true },
   { href: "/balances", label: "יתרות", disabled: true },
   { href: "/documents", label: "מסמכים", disabled: true },
