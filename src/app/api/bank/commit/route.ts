@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { parseBankCsv } from "@/lib/bank/csv";
 import { commitBankFile } from "@/lib/bank/import";
+import { runMatching } from "@/lib/match/engine";
 import { CURRENT_ACTOR } from "@/lib/format";
 
 export async function POST(req: Request) {
@@ -16,7 +17,9 @@ export async function POST(req: Request) {
       actor: CURRENT_ACTOR,
       fileName: file.name,
     });
-    return NextResponse.json({ data: report });
+    // מיד אחרי הקליטה — הרצת מנוע ההתאמה על התנועות הפתוחות
+    const matching = await runMatching(sql, { actor: CURRENT_ACTOR });
+    return NextResponse.json({ data: { ...report, matching } });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "שגיאה בקליטה" },

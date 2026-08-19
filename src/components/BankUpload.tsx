@@ -82,8 +82,12 @@ export default function BankUpload() {
     setError(null);
     try {
       const report = await post("/api/bank/commit", file);
+      const m = report.matching;
       setDone(
-        `נקלטו ${report.rowsNew} תנועות חדשות, ${report.rowsIgnored} הוחרגו, ${report.rowsDuplicate} זוהו כמטופלות`
+        `נקלטו ${report.rowsNew} תנועות חדשות, ${report.rowsIgnored} הוחרגו, ${report.rowsDuplicate} זוהו כמטופלות` +
+          (m
+            ? ` · התאמה: ${m.matchedExact} ודאיות, ${m.suggested} הצעות לאישור, ${m.queued} לתור הידני`
+            : "")
       );
       setPreview(null);
       setFile(null);
