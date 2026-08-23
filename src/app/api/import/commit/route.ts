@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { parseClientsWorkbook } from "@/lib/clients/excel";
 import { importClients } from "@/lib/clients/import";
-import { CURRENT_ACTOR } from "@/lib/format";
+import { getActor } from "@/lib/auth/actor";
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     }
     const parsed = await parseClientsWorkbook(await file.arrayBuffer());
     const report = await importClients(sql, parsed, {
-      actor: CURRENT_ACTOR,
+      actor: await getActor(),
       fileName: file.name,
     });
     return NextResponse.json({ data: report });

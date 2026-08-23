@@ -9,7 +9,7 @@ import {
   type ClientInput,
 } from "@/lib/clients/repo";
 import { createManualCharge } from "@/lib/charges/engine";
-import { CURRENT_ACTOR } from "@/lib/format";
+import { getActor } from "@/lib/auth/actor";
 
 function str(fd: FormData, name: string): string | null {
   const v = fd.get(name);
@@ -52,14 +52,14 @@ function formToInput(fd: FormData): ClientInput {
 
 export async function createClientAction(fd: FormData) {
   const input = formToInput(fd);
-  const created = await createClient(sql, input, CURRENT_ACTOR);
+  const created = await createClient(sql, input, await getActor());
   revalidatePath("/clients");
   redirect(`/clients/${created.id}`);
 }
 
 export async function updateClientAction(id: string, fd: FormData) {
   const input = formToInput(fd);
-  await updateClient(sql, id, input, CURRENT_ACTOR);
+  await updateClient(sql, id, input, await getActor());
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
   redirect(`/clients/${id}`);
@@ -79,14 +79,14 @@ export async function createChargeAction(clientId: string, fd: FormData) {
       chargeDate,
       description: str(fd, "description"),
     },
-    CURRENT_ACTOR
+    await getActor()
   );
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/balances");
 }
 
 export async function toggleActiveAction(id: string, isActive: boolean) {
-  await updateClient(sql, id, { isActive }, CURRENT_ACTOR);
+  await updateClient(sql, id, { isActive }, await getActor());
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
 }

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { runMonthlyCharges } from "@/lib/charges/engine";
-import { CURRENT_ACTOR } from "@/lib/format";
+import { getActor } from "@/lib/auth/actor";
 
 export async function runMonthlyChargesAction() {
-  await runMonthlyCharges(sql, { actor: CURRENT_ACTOR });
+  await runMonthlyCharges(sql, { actor: await getActor() });
   revalidatePath("/balances");
   revalidatePath("/clients");
 }

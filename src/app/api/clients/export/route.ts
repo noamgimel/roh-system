@@ -1,12 +1,12 @@
 import { sql } from "@/lib/db";
 import { exportClientsWorkbook } from "@/lib/clients/export";
 import { writeAudit } from "@/lib/audit";
-import { CURRENT_ACTOR } from "@/lib/format";
+import { getActor } from "@/lib/auth/actor";
 
 export async function GET() {
   const buffer = await exportClientsWorkbook(sql);
   await writeAudit(sql, {
-    actor: CURRENT_ACTOR,
+    actor: await getActor(),
     action: "clients_export",
     entity: "clients",
   });

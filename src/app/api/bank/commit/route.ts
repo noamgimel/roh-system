@@ -3,7 +3,7 @@ import { sql } from "@/lib/db";
 import { parseBankCsv } from "@/lib/bank/csv";
 import { commitBankFile } from "@/lib/bank/import";
 import { runMatching } from "@/lib/match/engine";
-import { CURRENT_ACTOR } from "@/lib/format";
+import { getActor } from "@/lib/auth/actor";
 
 export async function POST(req: Request) {
   try {
@@ -14,11 +14,11 @@ export async function POST(req: Request) {
     }
     const parsed = parseBankCsv(Buffer.from(await file.arrayBuffer()));
     const report = await commitBankFile(sql, parsed, {
-      actor: CURRENT_ACTOR,
+      actor: await getActor(),
       fileName: file.name,
     });
     // מיד אחרי הקליטה — הרצת מנוע ההתאמה על התנועות הפתוחות
-    const matching = await runMatching(sql, { actor: CURRENT_ACTOR });
+    const matching = await runMatching(sql, { actor: await getActor() });
     return NextResponse.json({ data: { ...report, matching } });
   } catch (e) {
     return NextResponse.json(

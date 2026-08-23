@@ -16,6 +16,3 @@ export function formatDate(value: unknown): string {
     new Date(value as string)
   );
 }
-
-// עד שיש מערכת התחברות — משתמש יחיד לפי האפיון
-export const CURRENT_ACTOR = "משתמש-ראשי";
