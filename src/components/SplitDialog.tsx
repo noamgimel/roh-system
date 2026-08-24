@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { splitAction } from "@/app/(app)/queue/actions";
+import { showToast } from "@/components/toast/store";
 
 interface ClientOption {
   id: string;
@@ -45,13 +46,18 @@ export default function SplitDialog({
     setBusy(true);
     setError(null);
     try {
-      await splitAction(
+      const res = await splitAction(
         txnId,
         parts.map((p) => ({ clientId: p.clientId, amount: Number(p.amount) }))
       );
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
       setOpen(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "שגיאה בפיצול");
+      showToast(res?.success ?? "הפיצול נרשם ואושר", "success");
+    } catch {
+      setError("שגיאה לא צפויה — נסה שוב");
     } finally {
       setBusy(false);
     }

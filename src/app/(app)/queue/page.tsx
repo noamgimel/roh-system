@@ -1,6 +1,7 @@
 import { sql } from "@/lib/db";
 import { formatMoney, formatDate } from "@/lib/format";
 import SplitDialog from "@/components/SplitDialog";
+import ActionForm from "@/components/ActionForm";
 import {
   confirmMatchAction,
   clearMatchAction,
@@ -51,17 +52,17 @@ export default async function QueuePage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold">תור אישורים</h1>
         <div className="flex gap-2">
-          <form action={runMatchingAction}>
+          <ActionForm action={runMatchingAction}>
             <button className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100">
               הרץ התאמה מחדש
             </button>
-          </form>
+          </ActionForm>
           {matchedCount > 0 && (
-            <form action={approveAllAction}>
+            <ActionForm action={approveAllAction}>
               <button className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700">
                 אשר את כל המותאמות ({matchedCount})
               </button>
-            </form>
+            </ActionForm>
           )}
         </div>
       </div>
@@ -130,13 +131,11 @@ export default async function QueuePage() {
                       </span>
                     </div>
                   ) : (
-                    <form
-                      action={confirmMatchAction}
-                      className="flex items-center gap-1.5"
-                    >
+                    <ActionForm action={confirmMatchAction} className="flex items-center gap-1.5">
                       <input type="hidden" name="txnId" value={t.id as string} />
                       <select
                         name="clientId"
+                        required
                         key={`${t.id}:${t.matchedClientId ?? ""}`}
                         defaultValue={(t.matchedClientId as string) ?? ""}
                         className="px-2 py-1 rounded-md border border-slate-300 bg-white text-xs max-w-44"
@@ -160,7 +159,7 @@ export default async function QueuePage() {
                           {CONFIDENCE_LABEL[t.matchConfidence as string]}
                         </span>
                       )}
-                    </form>
+                    </ActionForm>
                   )}
                   {t.status === "needs_review" &&
                     t.matchConfidence === "none" && (
@@ -173,16 +172,16 @@ export default async function QueuePage() {
                   <div className="flex items-center gap-3 whitespace-nowrap">
                     {t.status === "matched" && (
                       <>
-                        <form action={approveAction.bind(null, t.id as string)}>
+                        <ActionForm action={approveAction.bind(null, t.id as string)}>
                           <button className="px-3 py-1 rounded-md bg-blue-600 text-white text-xs hover:bg-blue-700">
                             אשר תשלום
                           </button>
-                        </form>
-                        <form action={clearMatchAction.bind(null, t.id as string)}>
+                        </ActionForm>
+                        <ActionForm action={clearMatchAction.bind(null, t.id as string)}>
                           <button className="text-xs text-slate-500 hover:text-slate-800 underline">
                             בטל שיוך
                           </button>
-                        </form>
+                        </ActionForm>
                       </>
                     )}
                     <SplitDialog
@@ -190,11 +189,11 @@ export default async function QueuePage() {
                       credit={t.credit as string}
                       clients={clientOptions}
                     />
-                    <form action={ignoreAction.bind(null, t.id as string)}>
+                    <ActionForm action={ignoreAction.bind(null, t.id as string)}>
                       <button className="text-xs text-slate-500 hover:text-slate-800 underline">
                         לא תשלום לקוח
                       </button>
-                    </form>
+                    </ActionForm>
                   </div>
                 </td>
               </tr>
@@ -233,11 +232,11 @@ export default async function QueuePage() {
                       {(t.allocationSummary as string) ?? "—"}
                     </td>
                     <td className="px-3 py-2.5 text-left">
-                      <form action={unapproveAction.bind(null, t.id as string)}>
+                      <ActionForm action={unapproveAction.bind(null, t.id as string)}>
                         <button className="text-xs text-slate-500 hover:text-slate-800 underline">
                           בטל אישור
                         </button>
-                      </form>
+                      </ActionForm>
                     </td>
                   </tr>
                 ))}

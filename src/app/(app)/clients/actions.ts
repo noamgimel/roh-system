@@ -10,6 +10,7 @@ import {
 } from "@/lib/clients/repo";
 import { createManualCharge } from "@/lib/charges/engine";
 import { getActor } from "@/lib/auth/actor";
+import { toActionResult, type ActionResult } from "@/lib/action-result";
 
 function str(fd: FormData, name: string): string | null {
   const v = fd.get(name);
@@ -50,43 +51,61 @@ function formToInput(fd: FormData): ClientInput {
   };
 }
 
-export async function createClientAction(fd: FormData) {
-  const input = formToInput(fd);
-  const created = await createClient(sql, input, await getActor());
+export async function createClientAction(fd: FormData): Promise<ActionResult> {
+  let createdId: string | null = null;
+  const result = await toActionResult(async () => {
+    const input = formToInput(fd);
+    const created = await createClient(sql, input, await getActor());
+    createdId = created.id as string;
+  });
+  if (result?.error) return result;
   revalidatePath("/clients");
-  redirect(`/clients/${created.id}`);
+  // redirect זורק במכוון — חייב להיות מחוץ ל-try/catch
+  redirect(`/clients/${createdId}`);
 }
 
-export async function updateClientAction(id: string, fd: FormData) {
-  const input = formToInput(fd);
-  await updateClient(sql, id, input, await getActor());
+export async function updateClientAction(
+  id: string,
+  fd: FormData
+): Promise<ActionResult> {
+  const result = await toActionResult(async () => {
+    const input = formToInput(fd);
+    await updateClient(sql, id, input, await getActor());
+  });
+  if (result?.error) return result;
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
   redirect(`/clients/${id}`);
 }
 
-export async function createChargeAction(clientId: string, fd: FormData) {
-  const amount = num(fd, "amount");
-  const chargeDate = str(fd, "chargeDate");
-  if (amount === null || !chargeDate) {
-    throw new Error("סכום ותאריך הם שדות חובה");
-  }
-  await createManualCharge(
-    sql,
-    {
-      clientId,
-      amount,
-      chargeDate,
-      description: str(fd, "description"),
-    },
-    await getActor()
-  );
-  revalidatePath(`/clients/${clientId}`);
-  revalidatePath("/balances");
+export async function createChargeAction(
+  clientId: string,
+  fd: FormData
+): Promise<ActionResult> {
+  return toActionResult(async () => {
+    const amount = num(fd, "amount");
+    const chargeDate = str(fd, "chargeDate");
+    if (amount === null) throw new Error("הזן סכום לחיוב");
+    if (!chargeDate) throw new Error("הזן תאריך לחיוב");
+    await createManualCharge(
+      sql,
+      { clientId, amount, chargeDate, description: str(fd, "description") },
+      await getActor()
+    );
+    revalidatePath(`/clients/${clientId}`);
+    revalidatePath("/balances");
+    return "החיוב נוסף";
+  });
 }
 
-export async function toggleActiveAction(id: string, isActive: boolean) {
-  await updateClient(sql, id, { isActive }, await getActor());
-  revalidatePath("/clients");
-  revalidatePath(`/clients/${id}`);
+export async function toggleActiveAction(
+  id: string,
+  isActive: boolean
+): Promise<ActionResult> {
+  return toActionResult(async () => {
+    await updateClient(sql, id, { isActive }, await getActor());
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${id}`);
+    return isActive ? "הלקוח הופעל" : "הלקוח סומן כלא פעיל";
+  });
 }

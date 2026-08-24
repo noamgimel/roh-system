@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { getClient } from "@/lib/clients/repo";
 import { formatMoney, formatDate } from "@/lib/format";
 import { createChargeAction } from "../actions";
+import ActionForm from "@/components/ActionForm";
 
 export const dynamic = "force-dynamic";
 
@@ -115,7 +116,7 @@ export default async function ClientCardPage({
             <h2 className="font-semibold">היסטוריית חיובים</h2>
           </div>
           {/* חיוב חד-פעמי ידני — בעיקר ללקוח מזדמן כשמסופק שירות */}
-          <form
+          <ActionForm
             action={createChargeAction.bind(null, id)}
             className="flex items-end gap-2 mb-4 pb-4 border-b border-slate-100"
           >
@@ -152,7 +153,7 @@ export default async function ClientCardPage({
             <button className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700">
               הוסף חיוב
             </button>
-          </form>
+          </ActionForm>
           {charges.length === 0 ? (
             <div className="text-sm text-slate-500">אין חיובים עדיין</div>
           ) : (

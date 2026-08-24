@@ -4,6 +4,7 @@ import { getBalancesOverview, currentPeriod } from "@/lib/charges/engine";
 import { getCutoffDate } from "@/lib/settings";
 import { formatMoney, formatDate } from "@/lib/format";
 import { runMonthlyChargesAction, setCutoffAction } from "./actions";
+import ActionForm from "@/components/ActionForm";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,11 @@ export default async function BalancesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">יתרות</h1>
-        <form action={runMonthlyChargesAction}>
+        <ActionForm action={runMonthlyChargesAction}>
           <button className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100">
             הרץ חיוב חודשי ({currentPeriod()})
           </button>
-        </form>
+        </ActionForm>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -58,7 +59,7 @@ export default async function BalancesPage() {
             {cutoff ? formatDate(cutoff) : "לא הוגדר"}
           </div>
           {/* תנועות עד תאריך זה (כולל) מוחרגות — כבר גולמו ביתרה הידנית */}
-          <form action={setCutoffAction} className="flex gap-1.5">
+          <ActionForm action={setCutoffAction} className="flex gap-1.5">
             <input
               type="date"
               name="cutoffDate"
@@ -68,7 +69,7 @@ export default async function BalancesPage() {
             <button className="px-2.5 py-1 rounded-md bg-slate-800 text-white text-xs hover:bg-slate-700">
               עדכן
             </button>
-          </form>
+          </ActionForm>
         </div>
       </div>
 

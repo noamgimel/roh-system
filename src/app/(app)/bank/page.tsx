@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { formatMoney, formatDate } from "@/lib/format";
 import BankUpload from "@/components/BankUpload";
 import { toggleIgnoredAction } from "./actions";
+import ActionForm from "@/components/ActionForm";
 
 export const dynamic = "force-dynamic";
 
@@ -160,19 +161,17 @@ export default async function BankPage() {
                       </td>
                       <td className="px-3 py-2.5 text-left whitespace-nowrap">
                         {canToggle && (
-                          <form
-                            action={toggleIgnoredAction.bind(
+                          <ActionForm action={toggleIgnoredAction.bind(
                               null,
                               t.id as string,
                               t.status !== "ignored"
-                            )}
-                          >
+                            )}>
                             <button className="text-xs text-slate-500 hover:text-slate-800 underline">
                               {t.status === "ignored"
                                 ? "החזר לעיבוד"
                                 : "לא תשלום לקוח"}
                             </button>
-                          </form>
+                          </ActionForm>
                         )}
                       </td>
                     </tr>

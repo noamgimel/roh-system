@@ -4,6 +4,17 @@ import { writeAudit } from "@/lib/audit";
 import { getActor } from "@/lib/auth/actor";
 
 export async function GET() {
+  try {
+    return await doExport();
+  } catch (e) {
+    return Response.json(
+      { error: e instanceof Error ? e.message : "שגיאה בייצוא" },
+      { status: 500 }
+    );
+  }
+}
+
+async function doExport() {
   const buffer = await exportClientsWorkbook(sql);
   await writeAudit(sql, {
     actor: await getActor(),

@@ -1,4 +1,8 @@
-// טופס לקוח משותף ליצירה ולעריכה — קומפוננטת שרת, נשלח ל-server action.
+// טופס לקוח משותף ליצירה ולעריכה — קומפוננטת שרת, נשלח ל-server action
+// דרך ActionForm כך ששגיאות (למשל ת"ז כפול) חוזרות כטוסט ולא מפילות מסך.
+
+import ActionForm from "@/components/ActionForm";
+import type { ActionResult } from "@/lib/action-result";
 
 type ClientRow = Record<string, unknown>;
 
@@ -45,13 +49,13 @@ export default function ClientForm({
   client,
   submitLabel,
 }: {
-  action: (fd: FormData) => Promise<void>;
+  action: (fd: FormData) => Promise<ActionResult>;
   client?: ClientRow;
   submitLabel: string;
 }) {
   const c = client ?? {};
   return (
-    <form action={action} className="space-y-8 max-w-3xl">
+    <ActionForm action={action} className="space-y-8 max-w-3xl">
       <section className="bg-white rounded-xl border border-slate-200 p-6">
         <h2 className="font-semibold mb-4">פרטים בסיסיים</h2>
         <div className="grid grid-cols-2 gap-4">
@@ -151,6 +155,6 @@ export default function ClientForm({
           {submitLabel}
         </button>
       </div>
-    </form>
+    </ActionForm>
   );
 }
