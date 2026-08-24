@@ -23,11 +23,19 @@ export default async function BalancesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">יתרות</h1>
-        <ActionForm action={runMonthlyChargesAction}>
-          <button className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100">
-            הרץ חיוב חודשי ({currentPeriod()})
-          </button>
-        </ActionForm>
+        <div className="flex gap-2">
+          <Link
+            href="/opening-balances"
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100"
+          >
+            הזנת יתרות פתיחה
+          </Link>
+          <ActionForm action={runMonthlyChargesAction}>
+            <button className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100">
+              הרץ חיוב חודשי ({currentPeriod()})
+            </button>
+          </ActionForm>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">

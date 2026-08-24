@@ -8,7 +8,8 @@ const NAV = [
   { href: "/bank", label: "קליטת דף חשבון" },
   { href: "/queue", label: "תור אישורים" },
   { href: "/balances", label: "יתרות" },
-  { href: "/audit", label: "יומן ביקורת", disabled: true },
+  { href: "/opening-balances", label: "יתרות פתיחה" },
+  { href: "/audit", label: "יומן ביקורת" },
 ];
 
 export default async function AppLayout({
@@ -26,25 +27,15 @@ export default async function AppLayout({
           <div className="text-xs text-slate-400 mt-1">משרד רו&quot;ח</div>
         </div>
         <nav className="flex-1 py-4">
-          {NAV.map((item) =>
-            item.disabled ? (
-              <span
-                key={item.href}
-                className="block px-5 py-2.5 text-sm text-slate-500 cursor-default select-none"
-                title="בקרוב"
-              >
-                {item.label}
-              </span>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block px-5 py-2.5 text-sm hover:bg-slate-800 transition-colors"
-              >
-                {item.label}
-              </Link>
-            )
-          )}
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="block px-5 py-2.5 text-sm hover:bg-slate-800 transition-colors"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
         <div className="px-5 py-4 border-t border-slate-700">
           <div className="text-xs text-slate-400 mb-2 truncate" title={session.email}>
