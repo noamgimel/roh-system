@@ -85,7 +85,7 @@ describe("מודל הלקוחות", () => {
 });
 
 describe("תצוגת היתרות", () => {
-  it("יתרה = יתרת פתיחה + חיובים − מסמכים שהונפקו בלבד (קריטריון קבלה 7)", async () => {
+  it("יתרה = פתיחה + חיובים − תשלומים מאושרים בלבד (קריטריון קבלה 7, סמנטיקת שלב א')", async () => {
     const [c] = await listClients(sql, { search: "לקוח ראשון" });
     const id = c.id as string;
 
@@ -95,15 +95,23 @@ describe("תצוגת היתרות", () => {
       values (${id}, '2026-07-01', 950, 'auto_monthly', '2026-07'),
              (${id}, '2026-08-01', 950, 'auto_monthly', '2026-08')
     `;
-    // מסמך שהונפק — מוריד; טיוטה — לא מורידה
+    // תשלום מאושר — מוריד; תנועה מותאמת שטרם אושרה — לא מורידה
+    const [approved] = await sql`
+      insert into bank_transactions (row_hash, txn_date, credit, status, matched_client_id)
+      values ('h-approved', '2026-08-05', 950, 'approved', ${id})
+      returning id
+    `;
     await sql`
-      insert into documents (client_id, amount, payment_date, idempotency_key, status, provider)
-      values (${id}, 950, '2026-08-05', 'k-issued', 'issued', 'paperless'),
-             (${id}, 950, '2026-08-06', 'k-draft', 'draft', 'paperless')
+      insert into transaction_allocations (bank_transaction_id, client_id, amount)
+      values (${approved.id as string}, ${id}, 950)
+    `;
+    await sql`
+      insert into bank_transactions (row_hash, txn_date, credit, status, matched_client_id)
+      values ('h-matched-only', '2026-08-06', 950, 'matched', ${id})
     `;
 
     const client = await getClient(sql, id);
-    // 1000 פתיחה + 1900 חיובים − 950 הונפק = 1950
+    // 1000 פתיחה + 1900 חיובים − 950 מאושר = 1950
     expect(Number(client!.balance)).toBe(1950);
   });
 

@@ -141,8 +141,18 @@ describe("חיוב ידני", () => {
 });
 
 describe("מסך היתרות", () => {
-  it('היתרה ו"שולם טרם הונפק" מחושבים נכון (קריטריון קבלה 7)', async () => {
-    // תנועה מותאמת שטרם הונפקה + מסמך שהונפק
+  it('היתרה ו"ממתין לאישור" מחושבים נכון (קריטריון קבלה 7, סמנטיקת שלב א\')', async () => {
+    // תשלום מאושר (מוריד) + תנועה מותאמת שממתינה לאישור (לא מורידה)
+    const [approved] = await sql`
+      insert into bank_transactions
+        (row_hash, txn_date, credit, status, matched_client_id)
+      values ('h-approved', '2026-07-05', 800, 'approved', ${fixedId})
+      returning id
+    `;
+    await sql`
+      insert into transaction_allocations (bank_transaction_id, client_id, amount)
+      values (${approved.id as string}, ${fixedId}, 800)
+    `;
     await sql`
       insert into bank_transactions
         (row_hash, txn_date, credit, status, matched_client_id)
@@ -150,23 +160,18 @@ describe("מסך היתרות", () => {
         ('h-pending', '2026-08-05', 800, 'matched', ${fixedId}),
         ('h-new-unmatched', '2026-08-06', 500, 'new', null)
     `;
-    await sql`
-      insert into documents (client_id, amount, payment_date, idempotency_key, status, provider)
-      values (${fixedId}, 800, '2026-07-05', 'k1', 'issued', 'paperless'),
-             (${fixedId}, 999, '2026-07-06', 'k2', 'draft', 'paperless')
-    `;
 
     const rows = await getBalancesOverview(sql);
     const fixed = rows.find((r) => r.id === fixedId)!;
-    // 1000 פתיחה + 1600 חיובים (אוג+ספט) − 800 הונפק = 1800
+    // 1000 פתיחה + 1600 חיובים (אוג+ספט) − 800 מאושר = 1800
     expect(Number(fixed.balance)).toBe(1800);
     expect(Number(fixed.chargesTotal)).toBe(1600);
-    expect(Number(fixed.issuedTotal)).toBe(800);
-    expect(Number(fixed.paidNotIssued)).toBe(800);
+    expect(Number(fixed.paidTotal)).toBe(800);
+    expect(Number(fixed.pendingApproval)).toBe(800);
 
     const casual = rows.find((r) => r.id === casualId)!;
     expect(Number(casual.balance)).toBe(450);
-    expect(Number(casual.paidNotIssued)).toBe(0);
+    expect(Number(casual.pendingApproval)).toBe(0);
   });
 
   it("לקוח לא פעיל אינו מופיע במסך היתרות", async () => {

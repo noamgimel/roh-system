@@ -117,16 +117,16 @@ export interface BalanceRow {
   clientType: string;
   openingBalance: string;
   chargesTotal: string;
-  issuedTotal: string;
+  paidTotal: string; // תשלומים מאושרים אחרי תאריך החתך — מורידים את היתרה
   balance: string;
-  paidNotIssued: string; // הותאם אך טרם הונפק מסמך — מוצג בנפרד
+  pendingApproval: string; // הותאם אך טרם אושר — עוד לא נרשם מול היתרה
 }
 
 /**
- * מסך היתרות: היתרה המחושבת לכל לקוח פעיל, וסימון נפרד של
- * "שולם, טרם הונפק" — תנועות שהותאמו ללקוח אך עוד לא הונפק להן
- * מסמך. הן אינן מורידות את היתרה (רק מסמך issued מוריד), אבל
- * מוצגות כדי שהמסך לא ישקר וגם לא יבלבל.
+ * מסך היתרות — סמנטיקת שלב א': את היתרה מורידים תשלומים מאושרים
+ * (שיוכי תנועות בסטטוס approved/issued, אחרי תאריך החתך). תנועה
+ * שהותאמה אך טרם אושרה מוצגת בנפרד כ"ממתין לאישור" — כדי שהמסך
+ * לא ישקר וגם לא יבלבל.
  */
 export async function getBalancesOverview(sql: Sql): Promise<BalanceRow[]> {
   const rows = await sql`
@@ -134,14 +134,24 @@ export async function getBalancesOverview(sql: Sql): Promise<BalanceRow[]> {
       c.id, c.name, c.client_type, c.opening_balance,
       coalesce((select sum(amount) from charges where client_id = c.id), 0)
         as charges_total,
-      coalesce((select sum(amount) from documents
-                where client_id = c.id and status = 'issued'), 0)
-        as issued_total,
+      coalesce((
+        select sum(a.amount)
+        from transaction_allocations a
+        join bank_transactions t on t.id = a.bank_transaction_id
+        where a.client_id = c.id
+          and t.status in ('approved', 'issued')
+          and (
+            (select nullif(value, '') from app_settings
+              where key = 'balance_cutoff_date') is null
+            or t.txn_date > (select nullif(value, '')::date from app_settings
+                              where key = 'balance_cutoff_date')
+          )
+      ), 0) as paid_total,
       b.balance,
       coalesce((select sum(t.credit) from bank_transactions t
                 where t.matched_client_id = c.id
-                  and t.status in ('matched', 'approved')), 0)
-        as paid_not_issued
+                  and t.status = 'matched'), 0)
+        as pending_approval
     from clients c
     join client_balances b on b.id = c.id
     where c.is_active

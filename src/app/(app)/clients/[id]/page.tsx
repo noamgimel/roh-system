@@ -32,9 +32,13 @@ export default async function ClientCardPage({
     select * from charges where client_id = ${id}
     order by charge_date desc limit 50
   `;
-  const documents = await sql`
-    select * from documents where client_id = ${id}
-    order by created_at desc limit 50
+  // תשלומים שנרשמו מול היתרה — שיוכי תנועות מאושרות
+  const payments = await sql`
+    select a.amount, t.txn_date, t.status, t.parsed_payer_name
+    from transaction_allocations a
+    join bank_transactions t on t.id = a.bank_transaction_id
+    where a.client_id = ${id}
+    order by t.txn_date desc limit 50
   `;
 
   return (
@@ -180,10 +184,10 @@ export default async function ClientCardPage({
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="font-semibold mb-4">מסמכים</h2>
-          {documents.length === 0 ? (
+          <h2 className="font-semibold mb-4">תשלומים שנרשמו</h2>
+          {payments.length === 0 ? (
             <div className="text-sm text-slate-500">
-              אין מסמכים עדיין — הנפקת מסמך בודד תתווסף בשלב המתאם
+              אין תשלומים עדיין — תשלום נרשם כאן לאחר אישורו בתור האישורים
             </div>
           ) : (
             <table className="w-full text-sm">
@@ -191,18 +195,16 @@ export default async function ClientCardPage({
                 <tr>
                   <th className="text-right pb-2">תאריך תשלום</th>
                   <th className="text-right pb-2">סכום</th>
-                  <th className="text-right pb-2">סטטוס</th>
-                  <th className="text-right pb-2">מס&apos; מסמך</th>
+                  <th className="text-right pb-2">משלם</th>
                 </tr>
               </thead>
               <tbody>
-                {documents.map((d) => (
-                  <tr key={d.id as string} className="border-t border-slate-100">
-                    <td className="py-2">{formatDate(d.paymentDate)}</td>
-                    <td className="py-2 tabular-nums">{formatMoney(d.amount)}</td>
-                    <td className="py-2">{d.status as string}</td>
-                    <td className="py-2" dir="ltr">
-                      {(d.providerDocNumber as string) ?? "—"}
+                {payments.map((p, i) => (
+                  <tr key={i} className="border-t border-slate-100">
+                    <td className="py-2">{formatDate(p.txnDate)}</td>
+                    <td className="py-2 tabular-nums">{formatMoney(p.amount)}</td>
+                    <td className="py-2 text-slate-600">
+                      {(p.parsedPayerName as string) ?? "—"}
                     </td>
                   </tr>
                 ))}

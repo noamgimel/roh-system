@@ -3,6 +3,9 @@ import type { ParsedBankFile, BankCsvRow } from "./csv";
 import { autoExclusionReason } from "./rules";
 import { parsePayerDetails } from "./payerParse";
 import { writeAudit } from "@/lib/audit";
+import { getCutoffDate } from "@/lib/settings";
+
+export const CUTOFF_IGNORE_REASON = "לפני תאריך החתך — כבר גולם ביתרת הפתיחה";
 
 // קליטת דף חשבון — כלל ברזל 4: המערכת לא סומכת על הבנק, היא סומכת
 // על עצמה. לפני כל כתיבה מוצג מסך ביניים; הכתיבה רק לאחר אישור.
@@ -57,12 +60,17 @@ export async function previewBankFile(
         `
       : [];
   const existingSet = new Set(existing.map((r) => r.rowHash as string));
+  const cutoff = await getCutoffDate(sql);
 
   const rows: BankPreviewRow[] = parsed.rows.map((r) => {
     let disposition: BankPreviewRow["disposition"] = "new";
     let ignoredReason: string | null = null;
     if (existingSet.has(r.rowHash)) {
       disposition = "duplicate";
+    } else if (cutoff && r.txnDate <= cutoff) {
+      // שורה עד תאריך החתך (כולל) — כבר גולמה ביתרת הפתיחה הידנית
+      disposition = "ignored";
+      ignoredReason = CUTOFF_IGNORE_REASON;
     } else {
       ignoredReason = autoExclusionReason(r);
       if (ignoredReason) disposition = "ignored";

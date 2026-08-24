@@ -6,6 +6,7 @@ const NAV = [
   { href: "/clients", label: "לקוחות" },
   { href: "/import", label: "ייבוא אקסל" },
   { href: "/bank", label: "קליטת דף חשבון" },
+  { href: "/queue", label: "תור אישורים" },
   { href: "/balances", label: "יתרות" },
   { href: "/audit", label: "יומן ביקורת", disabled: true },
 ];

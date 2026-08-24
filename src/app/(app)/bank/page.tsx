@@ -1,19 +1,8 @@
+import Link from "next/link";
 import { sql } from "@/lib/db";
 import { formatMoney, formatDate } from "@/lib/format";
 import BankUpload from "@/components/BankUpload";
-import {
-  toggleIgnoredAction,
-  runMatchingAction,
-  confirmMatchAction,
-  clearMatchAction,
-} from "./actions";
-
-const CONFIDENCE_LABEL: Record<string, string> = {
-  exact: "ודאי",
-  high: "ביטחון גבוה",
-  medium: "ביטחון בינוני",
-  none: "",
-};
+import { toggleIgnoredAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,14 +21,14 @@ export default async function BankPage() {
     select * from import_batches order by created_at desc limit 10
   `;
   const transactions = await sql`
-    select t.*, c.name as matched_client_name
+    select t.*, c.name as matched_client_name,
+      (select string_agg(cl.name, ', ')
+       from transaction_allocations a join clients cl on cl.id = a.client_id
+       where a.bank_transaction_id = t.id) as allocated_to
     from bank_transactions t
     left join clients c on c.id = t.matched_client_id
     order by t.txn_date desc, t.created_at desc
     limit 100
-  `;
-  const activeClients = await sql`
-    select id, name from clients where is_active order by name
   `;
 
   return (
@@ -96,11 +85,12 @@ export default async function BankPage() {
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">תנועות שנקלטו</h2>
-            <form action={runMatchingAction}>
-              <button className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100">
-                הרץ התאמה מחדש
-              </button>
-            </form>
+            <Link
+              href="/queue"
+              className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100"
+            >
+              לתור האישורים ←
+            </Link>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table className="w-full text-sm">
@@ -111,7 +101,7 @@ export default async function BankPage() {
                   <th className="text-right px-3 py-2.5 font-medium">משלם</th>
                   <th className="text-right px-3 py-2.5 font-medium">סכום</th>
                   <th className="text-right px-3 py-2.5 font-medium">סטטוס</th>
-                  <th className="text-right px-3 py-2.5 font-medium">התאמה ללקוח</th>
+                  <th className="text-right px-3 py-2.5 font-medium">לקוח</th>
                   <th className="text-right px-3 py-2.5 font-medium"></th>
                 </tr>
               </thead>
@@ -163,67 +153,12 @@ export default async function BankPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        {t.status === "matched" && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-blue-800">
-                              {t.matchedClientName as string}
-                            </span>
-                            <span
-                              className="text-xs text-slate-400"
-                              title={(t.matchReason as string) ?? undefined}
-                            >
-                              {CONFIDENCE_LABEL[t.matchConfidence as string] ?? ""}
-                            </span>
-                          </div>
-                        )}
-                        {(t.status === "new" || t.status === "needs_review") && (
-                          <form
-                            action={confirmMatchAction}
-                            className="flex items-center gap-1.5"
-                          >
-                            <input type="hidden" name="txnId" value={t.id as string} />
-                            <select
-                              name="clientId"
-                              // key מאלץ רינדור מחדש כשההצעה משתנה — select
-                              // לא-מבוקר אינו מתעדכן מ-defaultValue לבדו
-                              key={`${t.id}:${t.matchedClientId ?? ""}`}
-                              defaultValue={(t.matchedClientId as string) ?? ""}
-                              className="px-2 py-1 rounded-md border border-slate-300 bg-white text-xs max-w-40"
-                              title={(t.matchReason as string) ?? undefined}
-                            >
-                              <option value="">— בחר לקוח —</option>
-                              {activeClients.map((c) => (
-                                <option key={c.id as string} value={c.id as string}>
-                                  {c.name as string}
-                                </option>
-                              ))}
-                            </select>
-                            <button className="px-2.5 py-1 rounded-md bg-blue-600 text-white text-xs hover:bg-blue-700">
-                              אשר
-                            </button>
-                            {t.matchConfidence &&
-                              t.matchConfidence !== "none" && (
-                                <span
-                                  className="text-xs text-amber-700"
-                                  title={(t.matchReason as string) ?? undefined}
-                                >
-                                  {CONFIDENCE_LABEL[t.matchConfidence as string]}
-                                </span>
-                              )}
-                          </form>
-                        )}
-                        {t.status !== "matched" &&
-                          t.status !== "new" &&
-                          t.status !== "needs_review" && <span>—</span>}
+                        {(t.allocatedTo as string) ??
+                          (t.matchedClientName as string) ?? (
+                            <span className="text-slate-400">—</span>
+                          )}
                       </td>
                       <td className="px-3 py-2.5 text-left whitespace-nowrap">
-                        {t.status === "matched" && (
-                          <form action={clearMatchAction.bind(null, t.id as string)}>
-                            <button className="text-xs text-slate-500 hover:text-slate-800 underline">
-                              בטל התאמה
-                            </button>
-                          </form>
-                        )}
                         {canToggle && (
                           <form
                             action={toggleIgnoredAction.bind(

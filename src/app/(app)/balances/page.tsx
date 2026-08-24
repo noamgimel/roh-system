@@ -1,20 +1,22 @@
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { getBalancesOverview, currentPeriod } from "@/lib/charges/engine";
-import { formatMoney } from "@/lib/format";
-import { runMonthlyChargesAction } from "./actions";
+import { getCutoffDate } from "@/lib/settings";
+import { formatMoney, formatDate } from "@/lib/format";
+import { runMonthlyChargesAction, setCutoffAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function BalancesPage() {
   const rows = await getBalancesOverview(sql);
+  const cutoff = await getCutoffDate(sql);
   const [monthlyDone] = await sql`
     select count(*)::int as count from charges
     where source = 'auto_monthly' and period_key = ${currentPeriod()}
   `;
 
   const totalBalance = rows.reduce((s, r) => s + Number(r.balance), 0);
-  const totalPending = rows.reduce((s, r) => s + Number(r.paidNotIssued), 0);
+  const totalPending = rows.reduce((s, r) => s + Number(r.pendingApproval), 0);
 
   return (
     <div>
@@ -27,7 +29,7 @@ export default async function BalancesPage() {
         </form>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="text-xs text-slate-500">סך יתרות פתוחות</div>
           <div className="text-2xl font-bold mt-1 tabular-nums">
@@ -35,7 +37,7 @@ export default async function BalancesPage() {
           </div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="text-xs text-slate-500">שולם, טרם הונפק מסמך</div>
+          <div className="text-xs text-slate-500">ממתין לאישור בתור</div>
           <div className="text-2xl font-bold mt-1 tabular-nums text-amber-700">
             {formatMoney(totalPending)}
           </div>
@@ -48,6 +50,26 @@ export default async function BalancesPage() {
             {monthlyDone.count as number}
           </div>
         </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="text-xs text-slate-500 mb-1">
+            תאריך חתך ליתרות הפתיחה
+          </div>
+          <div className="text-lg font-bold tabular-nums mb-2">
+            {cutoff ? formatDate(cutoff) : "לא הוגדר"}
+          </div>
+          {/* תנועות עד תאריך זה (כולל) מוחרגות — כבר גולמו ביתרה הידנית */}
+          <form action={setCutoffAction} className="flex gap-1.5">
+            <input
+              type="date"
+              name="cutoffDate"
+              defaultValue={cutoff ?? ""}
+              className="flex-1 px-2 py-1 rounded-md border border-slate-300 text-xs"
+            />
+            <button className="px-2.5 py-1 rounded-md bg-slate-800 text-white text-xs hover:bg-slate-700">
+              עדכן
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -58,10 +80,10 @@ export default async function BalancesPage() {
               <th className="text-right px-4 py-3 font-medium">סוג</th>
               <th className="text-right px-4 py-3 font-medium">יתרת פתיחה</th>
               <th className="text-right px-4 py-3 font-medium">סך חיובים</th>
-              <th className="text-right px-4 py-3 font-medium">סך הונפק</th>
+              <th className="text-right px-4 py-3 font-medium">סך שולם</th>
               <th className="text-right px-4 py-3 font-medium">יתרה</th>
               <th className="text-right px-4 py-3 font-medium">
-                שולם, טרם הונפק
+                ממתין לאישור
               </th>
             </tr>
           </thead>
@@ -91,7 +113,7 @@ export default async function BalancesPage() {
                   {formatMoney(r.chargesTotal)}
                 </td>
                 <td className="px-4 py-3 tabular-nums">
-                  {formatMoney(r.issuedTotal)}
+                  {formatMoney(r.paidTotal)}
                 </td>
                 <td
                   className={
@@ -102,10 +124,13 @@ export default async function BalancesPage() {
                   {formatMoney(r.balance)}
                 </td>
                 <td className="px-4 py-3 tabular-nums">
-                  {Number(r.paidNotIssued) > 0 ? (
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-medium">
-                      {formatMoney(r.paidNotIssued)}
-                    </span>
+                  {Number(r.pendingApproval) > 0 ? (
+                    <Link
+                      href="/queue"
+                      className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-medium hover:bg-amber-200"
+                    >
+                      {formatMoney(r.pendingApproval)}
+                    </Link>
                   ) : (
                     "—"
                   )}
@@ -116,8 +141,10 @@ export default async function BalancesPage() {
         </table>
       </div>
       <p className="mt-3 text-xs text-slate-500 max-w-2xl">
-        היתרה יורדת רק כשמונפק מסמך. &quot;שולם, טרם הונפק&quot; = תנועות בנק
-        שהותאמו ללקוח וממתינות להנפקה — הכסף התקבל אך היתרה עוד לא עודכנה.
+        היתרה יורדת כשתשלום מאושר בתור האישורים. &quot;ממתין לאישור&quot; =
+        תנועות שהותאמו ללקוח אך טרם אושרו — הכסף בבנק, היתרה עוד לא עודכנה.
+        {cutoff &&
+          ` תנועות עד ${formatDate(cutoff)} (כולל) אינן נספרות — הן גולמו ביתרות הפתיחה.`}
       </p>
     </div>
   );
