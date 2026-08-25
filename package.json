@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "fixtures": "tsx scripts/make-fixtures.ts",
     "reparse": "tsx scripts/reparse-payers.ts",
-    "create-user": "tsx scripts/create-user.ts"
+    "create-user": "tsx scripts/create-user.ts",
+    "demo:fixtures": "tsx scripts/make-demo.ts",
+    "demo:reset": "tsx scripts/demo-reset.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
