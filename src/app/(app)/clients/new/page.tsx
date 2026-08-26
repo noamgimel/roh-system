@@ -20,6 +20,7 @@ const PREFILL_MAP: Record<string, string> = {
   permissions: "permissions",
   phone: "phone",
   email: "email",
+  rate: "rate",
   is_active: "isActive",
 };
 

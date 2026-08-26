@@ -20,6 +20,7 @@ const EXPORT_COLUMNS: { header: string; key: string; width?: number }[] = [
   { header: "הרשאות", key: "permissions", width: 14 },
   { header: "טלפון", key: "phone", width: 14 },
   { header: "אימייל", key: "email", width: 22 },
+  { header: "תעריף", key: "rate", width: 10 },
   { header: "סטטוס", key: "status", width: 10 },
 ];
 

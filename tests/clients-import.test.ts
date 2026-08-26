@@ -110,6 +110,42 @@ describe("ייבוא לקוחות ל-DB", () => {
     expect(c.clientType).toBe("מזדמן");
   });
 
+  it('עמודת "תעריף" אופציונלית: נקלטת כשקיימת, לא נדרסת כשחסרה', async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("לקוחות");
+    ws.getRow(1).values = ["מספר", "שם", "תעריף"];
+    ws.getRow(2).values = [777000018, "לקוח עם תעריף מהאקסל", 1250];
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+
+    const parsed = await parseClientsWorkbook(buf);
+    const report = await importClients(sql, parsed, { actor: "test" });
+    expect(report.created).toBe(1);
+
+    const [c] = await sql`
+      select rate from clients where tax_id = '777000018'
+    `;
+    expect(Number(c.rate)).toBe(1250);
+
+    // ייבוא של אותו לקוח מקובץ בלי עמודת תעריף — התעריף לא נמחק
+    const wb2 = new ExcelJS.Workbook();
+    const ws2 = wb2.addWorksheet("לקוחות");
+    ws2.getRow(1).values = ["מספר", "שם", "טלפון"];
+    ws2.getRow(2).values = [777000018, "לקוח עם תעריף מהאקסל", "0500000000"];
+    const parsed2 = await parseClientsWorkbook(
+      Buffer.from(await wb2.xlsx.writeBuffer())
+    );
+    await importClients(sql, parsed2, { actor: "test" });
+    const [after] = await sql`
+      select rate, phone from clients where tax_id = '777000018'
+    `;
+    expect(Number(after.rate)).toBe(1250); // נשמר
+    expect(after.phone).toBe("0500000000"); // הטלפון כן עודכן
+
+    // ניקוי — כדי לא להשפיע על ספירות בבדיקות הבאות
+    await sql`delete from clients where tax_id = '777000018'`;
+  });
+
   it("זיהוי כפילויות: findExistingTaxIds מוצא את מי שכבר במערכת", async () => {
     const parsed = await parseClientsWorkbook(fixture);
     const existing = await findExistingTaxIds(sql, parsed);

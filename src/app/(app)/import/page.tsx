@@ -60,6 +60,7 @@ const FIELD_LABELS: Record<string, string> = {
   permissions: "הרשאות",
   phone: "טלפון",
   email: "אימייל",
+  rate: "תעריף חודשי",
   is_active: "סטטוס",
 };
 

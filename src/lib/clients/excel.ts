@@ -26,6 +26,7 @@ export type ExcelClientField =
   | "permissions"
   | "phone"
   | "email"
+  | "rate" // תעריף חודשי — נקלט רק אם העמודה קיימת בקובץ
   | "is_active";
 
 export interface ParsedClientRow {
@@ -67,6 +68,8 @@ const HEADER_MAP: Record<string, ExcelClientField | ExcelClientField[]> = {
   "טלפון": "phone",
   "אימייל": "email",
   "מייל": "email",
+  "תעריף": "rate",
+  "תעריף חודשי": "rate",
   "סטטוס": "is_active",
 };
 
@@ -131,6 +134,7 @@ function parseCell(field: ExcelClientField, raw: unknown): unknown {
     case "spouse_tax_id":
       return normalizeTaxId(raw);
     case "advances_rate":
+    case "rate":
       return normalizeNumber(raw);
     case "phone":
       return normalizePhone(raw);

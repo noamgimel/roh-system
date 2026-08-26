@@ -49,6 +49,7 @@ const IMPORTABLE_FIELDS: ExcelClientField[] = [
   "permissions",
   "phone",
   "email",
+  "rate", // נכתב רק כשעמודת "תעריף" קיימת בקובץ — אחרת לא נגרע
   "is_active",
 ];
 
