@@ -4,6 +4,7 @@
 // Z כבר טופלו, W הוחרגו") ← אישור ← קליטה. כלל ברזל 4.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 interface PreviewRow {
@@ -50,7 +51,10 @@ export default function BankUpload() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<{
+    message: string;
+    pendingInQueue: number;
+  } | null>(null);
 
   async function post(url: string, f: File) {
     const fd = new FormData();
@@ -83,12 +87,14 @@ export default function BankUpload() {
     try {
       const report = await post("/api/bank/commit", file);
       const m = report.matching;
-      setDone(
-        `נקלטו ${report.rowsNew} תנועות חדשות, ${report.rowsIgnored} הוחרגו, ${report.rowsDuplicate} זוהו כמטופלות` +
+      setDone({
+        message:
+          `נקלטו ${report.rowsNew} תנועות חדשות, ${report.rowsIgnored} הוחרגו, ${report.rowsDuplicate} זוהו כמטופלות` +
           (m
             ? ` · התאמה: ${m.matchedExact} ודאיות, ${m.suggested} הצעות לאישור, ${m.queued} לתור הידני`
-            : "")
-      );
+            : ""),
+        pendingInQueue: m ? m.matchedExact + m.suggested + m.queued : 0,
+      });
       setPreview(null);
       setFile(null);
       router.refresh();
@@ -125,8 +131,16 @@ export default function BankUpload() {
           </div>
         )}
         {done && (
-          <div className="mt-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-            {done}
+          <div className="mt-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+            <div className="text-sm text-green-800">{done.message}</div>
+            {done.pendingInQueue > 0 && (
+              <Link
+                href="/queue"
+                className="inline-block mt-2.5 px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+              >
+                המשך לתור האישורים ({done.pendingInQueue} ממתינות) ←
+              </Link>
+            )}
           </div>
         )}
       </div>

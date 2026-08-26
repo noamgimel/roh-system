@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/actor";
+import SideNav from "@/components/SideNav";
 
 const NAV = [
   { href: "/clients", label: "לקוחות" },
@@ -26,17 +26,7 @@ export default async function AppLayout({
           <div className="text-lg font-bold">ניהול לקוחות ויתרות</div>
           <div className="text-xs text-slate-400 mt-1">משרד רו&quot;ח</div>
         </div>
-        <nav className="flex-1 py-4">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="block px-5 py-2.5 text-sm hover:bg-slate-800 transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <SideNav items={NAV} />
         <div className="px-5 py-4 border-t border-slate-700">
           <div className="text-xs text-slate-400 mb-2 truncate" title={session.email}>
             מחובר: {session.name || session.email}

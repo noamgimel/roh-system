@@ -229,9 +229,13 @@ export default function ImportPage() {
 
           {preview.failedRows.length > 0 && (
             <div className="bg-white rounded-xl border border-red-200 p-6">
-              <h3 className="font-semibold text-red-800 mb-3">
+              <h3 className="font-semibold text-red-800 mb-1">
                 דוח שגיאות — השורות האלה לא ייובאו
               </h3>
+              <p className="text-xs text-slate-500 mb-3">
+                המשך בייבוא כרגיל — מיד אחריו יופיע כאן כפתור להשלמת כל
+                לקוח כזה ידנית, עם השדות שכן נקראו ממולאים מראש.
+              </p>
               <table className="w-full text-sm">
                 <thead className="text-slate-500 text-xs">
                   <tr>
@@ -248,16 +252,9 @@ export default function ImportPage() {
                       <td className="py-2">{r.name ?? "—"}</td>
                       <td className="py-2 text-red-700">{r.errors.join("; ")}</td>
                       <td className="py-2">
-                        {/* לשונית חדשה — לא מאבדים את תהליך הייבוא */}
-                        <a
-                          href={manualCompletionHref(r.data)}
-                          target="_blank"
-                          rel="noopener"
-                          title="נפתח בלשונית חדשה — הייבוא כאן לא הולך לאיבוד"
-                          className="text-xs text-blue-700 hover:underline whitespace-nowrap"
-                        >
-                          השלם ידנית ↗
-                        </a>
+                        <span className="text-xs text-slate-400 whitespace-nowrap">
+                          השלמה ידנית — אחרי הייבוא
+                        </span>
                       </td>
                     </tr>
                   ))}
