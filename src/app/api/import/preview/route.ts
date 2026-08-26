@@ -25,6 +25,8 @@ export async function POST(req: Request) {
           rowNumber: r.rowNumber,
           name: (r.data.name as string) ?? null,
           errors: r.errors,
+          // כל מה שכן נקרא מהשורה — להשלמה ידנית בטופס לקוח חדש
+          data: r.data,
         })),
         sample: valid.slice(0, 10).map((r) => r.data),
       },

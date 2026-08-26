@@ -7,7 +7,7 @@ import { importClients } from "../src/lib/clients/import";
 import { parseBankCsv } from "../src/lib/bank/csv";
 import { commitBankFile } from "../src/lib/bank/import";
 import { runMatching, confirmMatch } from "../src/lib/match/engine";
-import { approveTransaction, splitTransaction, approveAllMatched } from "../src/lib/match/queue";
+import { splitTransaction, approveAllMatched } from "../src/lib/match/queue";
 import { runMonthlyCharges, getBalancesOverview } from "../src/lib/charges/engine";
 import { DEMO_RATES } from "./make-demo";
 

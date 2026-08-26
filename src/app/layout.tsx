@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Heebo } from "next/font/google";
 import Toaster from "@/components/toast/Toaster";
+import NumberInputGuard from "@/components/NumberInputGuard";
 import "./globals.css";
 
 const heebo = Heebo({ subsets: ["hebrew", "latin"] });
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <body className={`${heebo.className} bg-slate-50 text-slate-900 antialiased`}>
         <Toaster />
+        <NumberInputGuard />
         {children}
       </body>
     </html>

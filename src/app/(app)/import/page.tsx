@@ -14,7 +14,12 @@ interface PreviewData {
   unmappedHeaders: string[];
   totalRows: number;
   validCount: number;
-  failedRows: { rowNumber: number; name: string | null; errors: string[] }[];
+  failedRows: {
+    rowNumber: number;
+    name: string | null;
+    errors: string[];
+    data: Record<string, unknown>;
+  }[];
   sample: Record<string, unknown>[];
 }
 
@@ -175,6 +180,7 @@ export default function ImportPage() {
                     <th className="text-right pb-2 w-20">שורה</th>
                     <th className="text-right pb-2 w-48">שם</th>
                     <th className="text-right pb-2">שגיאות</th>
+                    <th className="text-right pb-2 w-28"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,6 +189,17 @@ export default function ImportPage() {
                       <td className="py-2">{r.rowNumber}</td>
                       <td className="py-2">{r.name ?? "—"}</td>
                       <td className="py-2 text-red-700">{r.errors.join("; ")}</td>
+                      <td className="py-2">
+                        {/* פותח טופס לקוח חדש עם כל מה שכן נקרא מהשורה */}
+                        <Link
+                          href={`/clients/new?prefill=${encodeURIComponent(
+                            JSON.stringify(r.data)
+                          )}`}
+                          className="text-xs text-blue-700 hover:underline whitespace-nowrap"
+                        >
+                          השלם ידנית ←
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -13,7 +13,8 @@ function Detail({ label, value, dir }: { label: string; value: unknown; dir?: "l
   return (
     <div>
       <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="text-sm mt-0.5" dir={dir}>
+      {/* text-right מפורש — dir=ltr לבדו מיישר שמאלה ושובר את הטור */}
+      <dd className="text-sm mt-0.5 text-right" dir={dir}>
         {value === null || value === undefined || value === "" ? "—" : String(value)}
       </dd>
     </div>
