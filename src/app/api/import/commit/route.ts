@@ -15,6 +15,8 @@ export async function POST(req: Request) {
     const report = await importClients(sql, parsed, {
       actor: await getActor(),
       fileName: file.name,
+      // ברירת מחדל: רק חדשים. עדכון קיימים דורש בחירה מפורשת במסך
+      updateExisting: form.get("updateExisting") === "1",
     });
     return NextResponse.json({ data: report });
   } catch (e) {

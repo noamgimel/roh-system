@@ -14,6 +14,9 @@ interface PreviewData {
   unmappedHeaders: string[];
   totalRows: number;
   validCount: number;
+  newCount: number;
+  existingCount: number;
+  existingNames: string[];
   failedRows: {
     rowNumber: number;
     name: string | null;
@@ -27,7 +30,17 @@ interface ImportReport {
   totalRows: number;
   created: number;
   updated: number;
-  failed: { rowNumber: number; errors: string[] }[];
+  skippedExisting: number;
+  failed: {
+    rowNumber: number;
+    errors: string[];
+    name: string | null;
+    data: Record<string, unknown>;
+  }[];
+}
+
+function manualCompletionHref(data: Record<string, unknown>): string {
+  return `/clients/new?prefill=${encodeURIComponent(JSON.stringify(data))}`;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -56,10 +69,13 @@ export default function ImportPage() {
   const [report, setReport] = useState<ImportReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // מה עושים עם לקוחות שכבר קיימים: ברירת מחדל — לדלג (לייבא רק חדשים)
+  const [updateExisting, setUpdateExisting] = useState(false);
 
-  async function post(url: string, f: File) {
+  async function post(url: string, f: File, extra?: Record<string, string>) {
     const fd = new FormData();
     fd.append("file", f);
+    for (const [k, v] of Object.entries(extra ?? {})) fd.append(k, v);
     const res = await fetch(url, { method: "POST", body: fd });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? "שגיאה לא צפויה");
@@ -73,6 +89,7 @@ export default function ImportPage() {
     try {
       setPreview(await post("/api/import/preview", f));
       setFile(f);
+      setUpdateExisting(false);
     } catch (e) {
       setPreview(null);
       setError(e instanceof Error ? e.message : "שגיאה בפענוח הקובץ");
@@ -86,7 +103,11 @@ export default function ImportPage() {
     setBusy(true);
     setError(null);
     try {
-      setReport(await post("/api/import/commit", file));
+      setReport(
+        await post("/api/import/commit", file, {
+          updateExisting: updateExisting ? "1" : "0",
+        })
+      );
       setPreview(null);
       setFile(null);
     } catch (e) {
@@ -132,20 +153,57 @@ export default function ImportPage() {
         <div className="space-y-6 max-w-4xl">
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h2 className="font-semibold mb-3">תצוגה מקדימה — {preview.fileName}</h2>
-            <div className="flex gap-6 text-sm">
+            <div className="flex flex-wrap gap-6 text-sm">
               <div>
                 <span className="text-slate-500">שורות בקובץ:</span>{" "}
                 <b>{preview.totalRows}</b>
               </div>
               <div>
-                <span className="text-slate-500">תקינות לייבוא:</span>{" "}
-                <b className="text-green-700">{preview.validCount}</b>
+                <span className="text-slate-500">חדשים:</span>{" "}
+                <b className="text-green-700">{preview.newCount}</b>
+              </div>
+              <div>
+                <span className="text-slate-500">כבר קיימים במערכת:</span>{" "}
+                <b className="text-blue-700">{preview.existingCount}</b>
               </div>
               <div>
                 <span className="text-slate-500">עם שגיאות:</span>{" "}
                 <b className="text-red-700">{preview.failedRows.length}</b>
               </div>
             </div>
+
+            {preview.existingCount > 0 && (
+              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="text-sm font-medium text-blue-900 mb-2">
+                  {preview.existingCount} לקוחות מהקובץ כבר קיימים במערכת
+                  {preview.existingNames.length > 0 && (
+                    <span className="font-normal text-blue-800">
+                      {" "}
+                      ({preview.existingNames.slice(0, 5).join(", ")}
+                      {preview.existingCount > 5 ? "…" : ""})
+                    </span>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 text-sm text-blue-900">
+                  <input
+                    type="radio"
+                    name="existingMode"
+                    checked={!updateExisting}
+                    onChange={() => setUpdateExisting(false)}
+                  />
+                  ייבא רק את החדשים — דלג על הקיימים (מומלץ)
+                </label>
+                <label className="flex items-center gap-2 text-sm text-blue-900 mt-1">
+                  <input
+                    type="radio"
+                    name="existingMode"
+                    checked={updateExisting}
+                    onChange={() => setUpdateExisting(true)}
+                  />
+                  ייבא חדשים וגם עדכן את הקיימים מהקובץ
+                </label>
+              </div>
+            )}
 
             <div className="mt-4">
               <h3 className="text-sm font-medium mb-2">מיפוי עמודות</h3>
@@ -190,15 +248,16 @@ export default function ImportPage() {
                       <td className="py-2">{r.name ?? "—"}</td>
                       <td className="py-2 text-red-700">{r.errors.join("; ")}</td>
                       <td className="py-2">
-                        {/* פותח טופס לקוח חדש עם כל מה שכן נקרא מהשורה */}
-                        <Link
-                          href={`/clients/new?prefill=${encodeURIComponent(
-                            JSON.stringify(r.data)
-                          )}`}
+                        {/* לשונית חדשה — לא מאבדים את תהליך הייבוא */}
+                        <a
+                          href={manualCompletionHref(r.data)}
+                          target="_blank"
+                          rel="noopener"
+                          title="נפתח בלשונית חדשה — הייבוא כאן לא הולך לאיבוד"
                           className="text-xs text-blue-700 hover:underline whitespace-nowrap"
                         >
-                          השלם ידנית ←
-                        </Link>
+                          השלם ידנית ↗
+                        </a>
                       </td>
                     </tr>
                   ))}
@@ -210,10 +269,15 @@ export default function ImportPage() {
           <div className="flex gap-3">
             <button
               onClick={handleCommit}
-              disabled={busy || preview.validCount === 0}
+              disabled={
+                busy ||
+                (updateExisting ? preview.validCount : preview.newCount) === 0
+              }
               className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              אישור וייבוא {preview.validCount} לקוחות
+              {updateExisting
+                ? `ייבא ${preview.newCount} חדשים ועדכן ${preview.existingCount} קיימים`
+                : `ייבא ${preview.newCount} לקוחות חדשים`}
             </button>
             <button
               onClick={() => {
@@ -235,12 +299,37 @@ export default function ImportPage() {
           <ul className="text-sm space-y-1">
             <li>נוצרו: <b>{report.created}</b> לקוחות חדשים</li>
             <li>עודכנו: <b>{report.updated}</b> לקוחות קיימים</li>
-            {report.failed.length > 0 && (
-              <li className="text-red-700">
-                נכשלו: <b>{report.failed.length}</b> שורות (ראה דוח שגיאות למעלה)
+            {report.skippedExisting > 0 && (
+              <li className="text-slate-600">
+                דולגו: <b>{report.skippedExisting}</b> לקוחות שכבר קיימים
               </li>
             )}
           </ul>
+          {report.failed.length > 0 && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
+              <div className="text-sm font-medium text-red-800 mb-2">
+                {report.failed.length} שורות לא יובאו — אפשר להשלים ידנית:
+              </div>
+              <ul className="text-sm space-y-1">
+                {report.failed.map((r) => (
+                  <li key={r.rowNumber} className="flex items-center gap-2">
+                    <span>
+                      שורה {r.rowNumber} — {r.name ?? "ללא שם"}:{" "}
+                      <span className="text-red-700">{r.errors.join("; ")}</span>
+                    </span>
+                    <a
+                      href={manualCompletionHref(r.data)}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-xs text-blue-700 hover:underline whitespace-nowrap"
+                    >
+                      השלם ידנית ↗
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Link
             href="/clients"
             className="inline-block mt-4 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-700"

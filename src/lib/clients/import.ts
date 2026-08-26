@@ -6,8 +6,29 @@ export interface ImportReport {
   totalRows: number;
   created: number;
   updated: number;
-  failed: { rowNumber: number; errors: string[] }[];
+  skippedExisting: number; // קיימים שדולגו כשנבחר "ייבא רק חדשים"
+  failed: {
+    rowNumber: number;
+    errors: string[];
+    name: string | null;
+    data: Record<string, unknown>; // להשלמה ידנית
+  }[];
   unmappedHeaders: string[];
+}
+
+/** אילו ת"ז מהשורות התקינות כבר קיימות במערכת — לזיהוי כפילויות בתצוגה המקדימה. */
+export async function findExistingTaxIds(
+  sql: Sql,
+  parsed: ParsedWorkbook
+): Promise<Set<string>> {
+  const ids = parsed.rows
+    .filter((r) => r.errors.length === 0 && r.data.tax_id)
+    .map((r) => r.data.tax_id as string);
+  if (ids.length === 0) return new Set();
+  const rows = await sql`
+    select tax_id from clients where tax_id in ${sql(ids)}
+  `;
+  return new Set(rows.map((r) => r.taxId as string));
 }
 
 // השדות שמותר לייבוא לכתוב. כל השאר — בבעלות המערכת ולא נדרס.
@@ -39,21 +60,39 @@ const IMPORTABLE_FIELDS: ExcelClientField[] = [
 export async function importClients(
   sql: Sql,
   parsed: ParsedWorkbook,
-  opts: { actor: string; fileName?: string }
+  opts: { actor: string; fileName?: string; updateExisting?: boolean }
 ): Promise<ImportReport> {
+  const updateExisting = opts.updateExisting ?? true;
   const report: ImportReport = {
     totalRows: parsed.rows.length,
     created: 0,
     updated: 0,
+    skippedExisting: 0,
     failed: [],
     unmappedHeaders: parsed.unmappedHeaders,
   };
 
-  const validRows = parsed.rows.filter((r) => r.errors.length === 0);
+  let validRows = parsed.rows.filter((r) => r.errors.length === 0);
   for (const r of parsed.rows) {
     if (r.errors.length > 0) {
-      report.failed.push({ rowNumber: r.rowNumber, errors: r.errors });
+      report.failed.push({
+        rowNumber: r.rowNumber,
+        errors: r.errors,
+        name: (r.data.name as string) ?? null,
+        data: r.data,
+      });
     }
+  }
+
+  // "ייבא רק חדשים": שורות של לקוחות קיימים מדולגות ולא נדרסות
+  if (!updateExisting) {
+    const existing = await findExistingTaxIds(sql, parsed);
+    report.skippedExisting = validRows.filter((r) =>
+      existing.has(r.data.tax_id as string)
+    ).length;
+    validRows = validRows.filter(
+      (r) => !existing.has(r.data.tax_id as string)
+    );
   }
 
   await sql.begin(async (tx) => {
@@ -83,6 +122,7 @@ export async function importClients(
         total: report.totalRows,
         created: report.created,
         updated: report.updated,
+        skipped_existing: report.skippedExisting,
         failed: report.failed.length,
       },
     });

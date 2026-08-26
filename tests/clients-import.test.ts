@@ -7,7 +7,7 @@ import {
   EXPECTED_FAILED_COUNT,
 } from "./helpers/fixtureWorkbook";
 import { parseClientsWorkbook } from "@/lib/clients/excel";
-import { importClients } from "@/lib/clients/import";
+import { importClients, findExistingTaxIds } from "@/lib/clients/import";
 import { exportClientsWorkbook } from "@/lib/clients/export";
 
 let sql: Sql;
@@ -108,6 +108,47 @@ describe("ייבוא לקוחות ל-DB", () => {
     expect(Number(c.rate)).toBe(1200);
     expect(Number(c.openingBalance)).toBe(500);
     expect(c.clientType).toBe("מזדמן");
+  });
+
+  it("זיהוי כפילויות: findExistingTaxIds מוצא את מי שכבר במערכת", async () => {
+    const parsed = await parseClientsWorkbook(fixture);
+    const existing = await findExistingTaxIds(sql, parsed);
+    expect(existing.size).toBe(EXPECTED_VALID_COUNT); // כולם כבר יובאו
+    expect(existing.has("034567890")).toBe(true);
+  });
+
+  it("מצב 'ייבא רק חדשים': קיימים מדולגים ולא נדרסים", async () => {
+    // משנים שם של לקוח קיים — ייבוא במצב דילוג לא אמור לדרוס אותו
+    await sql`
+      update clients set name = 'שם ששונה ידנית' where tax_id = '034567890'
+    `;
+    const parsed = await parseClientsWorkbook(fixture);
+    const report = await importClients(sql, parsed, {
+      actor: "test",
+      updateExisting: false,
+    });
+    expect(report.created).toBe(0);
+    expect(report.updated).toBe(0);
+    expect(report.skippedExisting).toBe(EXPECTED_VALID_COUNT);
+
+    const [c] = await sql`select name from clients where tax_id = '034567890'`;
+    expect(c.name).toBe("שם ששונה ידנית"); // לא נדרס
+
+    // מצב עדכון מפורש כן דורס — חוזרים למצב המקורי
+    await importClients(sql, parsed, { actor: "test", updateExisting: true });
+    const [restored] = await sql`
+      select name from clients where tax_id = '034567890'
+    `;
+    expect(restored.name).toBe("ישראל ישראלי");
+  });
+
+  it("דוח הכשלונות כולל את נתוני השורה להשלמה ידנית", async () => {
+    const parsed = await parseClientsWorkbook(fixture);
+    const report = await importClients(sql, parsed, { actor: "test" });
+    const noTaxId = report.failed.find((f) => f.name === "לקוח בלי מספר");
+    expect(noTaxId).toBeDefined();
+    expect(noTaxId!.data.name).toBe("לקוח בלי מספר");
+    expect(noTaxId!.data.activity).toBe("הובלות");
   });
 
   it("הייבוא נרשם ביומן הביקורת", async () => {

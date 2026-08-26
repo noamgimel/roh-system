@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { sql } from "@/lib/db";
 import { parseClientsWorkbook } from "@/lib/clients/excel";
+import { findExistingTaxIds } from "@/lib/clients/import";
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +15,12 @@ export async function POST(req: Request) {
     const valid = parsed.rows.filter((r) => r.errors.length === 0);
     const failed = parsed.rows.filter((r) => r.errors.length > 0);
 
+    // זיהוי כפילויות: מי מהשורות התקינות כבר קיים במערכת (לפי ת"ז)
+    const existing = await findExistingTaxIds(sql, parsed);
+    const existingRows = valid.filter((r) =>
+      existing.has(r.data.tax_id as string)
+    );
+
     return NextResponse.json({
       data: {
         fileName: file.name,
@@ -21,6 +29,11 @@ export async function POST(req: Request) {
         unmappedHeaders: parsed.unmappedHeaders,
         totalRows: parsed.rows.length,
         validCount: valid.length,
+        newCount: valid.length - existingRows.length,
+        existingCount: existingRows.length,
+        existingNames: existingRows
+          .slice(0, 15)
+          .map((r) => (r.data.name as string) ?? ""),
         failedRows: failed.map((r) => ({
           rowNumber: r.rowNumber,
           name: (r.data.name as string) ?? null,
