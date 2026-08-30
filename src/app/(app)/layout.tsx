@@ -10,6 +10,7 @@ const NAV = [
   { href: "/balances", label: "יתרות" },
   { href: "/opening-balances", label: "יתרות פתיחה" },
   { href: "/audit", label: "יומן ביקורת" },
+  { href: "/masking", label: "מיסוך נתונים (זמני)" },
 ];
 
 export default async function AppLayout({

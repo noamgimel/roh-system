@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ============ נתונים — אסור שקובצי נתונים ייכנסו לריפו ============
+# הקבצים האמיתיים נשמרים מחוץ לריפו לגמרי; זו רשת ביטחון בלבד.
+# גם קובצי הדמו לא במעקב — נוצרים עם: npm run fixtures / demo:fixtures
+*.xlsx
+*.xls
+*.csv
+/data/
+/fixtures/
