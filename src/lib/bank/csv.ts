@@ -21,7 +21,7 @@ export interface BankCsvRow {
 
 export interface ParsedBankFile {
   headerRowNumber: number;
-  encoding: "windows-1255" | "utf-8";
+  encoding: "windows-1255" | "utf-8" | "xlsx";
   rows: BankCsvRow[]; // שורות זכות בלבד, בסדר כרונולוגי עולה
   debitRowsFiltered: number; // שורות חובה שסוננו
   skippedRows: { rowNumber: number; reason: string }[];
@@ -123,7 +123,9 @@ export function parseAmount(raw: string): string | null {
   if (!cleaned || !/\d/.test(cleaned)) return null;
   const n = Number(cleaned);
   if (!Number.isFinite(n) || n === 0) return null;
-  return cleaned;
+  // תמיד שתי ספרות אחרי הנקודה — כך אותה תנועה מקבלת אותו row_hash
+  // בין ייצוא CSV ("1500.00") לייצוא xlsx (המספר 1500)
+  return n.toFixed(2);
 }
 
 /**
@@ -148,27 +150,48 @@ export function computeRowHash(row: {
   return createHash("sha256").update(key, "utf8").digest("hex");
 }
 
+export type BankHeaderMap = { index: number; field: keyof RawRow }[];
+
+/** ממפה שורת תאים לעמודות הבנק המוכרות. ריק = לא שורת כותרות. */
+export function mapBankHeaders(cells: string[]): BankHeaderMap {
+  const mapped: BankHeaderMap = [];
+  cells.forEach((c, idx) => {
+    const clean = (c ?? "").replace(/\s+/g, " ").trim();
+    const field = HEADER_ALIASES[clean];
+    if (field && !mapped.some((m) => m.field === field)) {
+      mapped.push({ index: idx, field });
+    }
+  });
+  return mapped;
+}
+
+/** האם שורת תאים היא שורת הכותרות של דף חשבון (לפחות 4 כותרות מוכרות)? */
+export function isBankHeaderRow(cells: string[]): boolean {
+  return mapBankHeaders(cells).length >= 4;
+}
+
 /**
- * פענוח קובץ בנק מלא: קידוד → שורות → כותרות → סינון חובה →
- * row_hash → מיון כרונולוגי עולה (כלל ברזל 9).
+ * פענוח קובץ בנק בפורמט CSV: קידוד → שורות → הליבה המשותפת.
  */
 export function parseBankCsv(buffer: Buffer): ParsedBankFile {
   const { text, encoding } = decodeBankFile(buffer);
-  const lines = text.split(/\r?\n/);
+  const table = text.split(/\r?\n/).map((line) => splitCsvLine(line));
+  return parseBankTable(table, encoding);
+}
 
+/**
+ * הליבה המשותפת ל-CSV ול-xlsx: טבלת תאים (מחרוזות) → כותרות →
+ * סינון חובה → row_hash → מיון כרונולוגי עולה (כלל ברזל 9).
+ */
+export function parseBankTable(
+  table: string[][],
+  encoding: ParsedBankFile["encoding"]
+): ParsedBankFile {
   // זיהוי שורת הכותרות: השורה הראשונה עם לפחות 4 כותרות מוכרות
   let headerRowNumber = -1;
-  let headerMap: { index: number; field: keyof RawRow }[] = [];
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
-    const cells = splitCsvLine(lines[i]);
-    const mapped: { index: number; field: keyof RawRow }[] = [];
-    cells.forEach((c, idx) => {
-      const clean = c.replace(/\s+/g, " ").trim();
-      const field = HEADER_ALIASES[clean];
-      if (field && !mapped.some((m) => m.field === field)) {
-        mapped.push({ index: idx, field });
-      }
-    });
+  let headerMap: BankHeaderMap = [];
+  for (let i = 0; i < Math.min(table.length, 20); i++) {
+    const mapped = mapBankHeaders(table[i]);
     if (mapped.length >= 4) {
       headerRowNumber = i + 1;
       headerMap = mapped;
@@ -177,7 +200,7 @@ export function parseBankCsv(buffer: Buffer): ParsedBankFile {
   }
   if (headerRowNumber === -1) {
     throw new Error(
-      "לא זוהתה שורת כותרות בקובץ — ודא שזה ייצוא CSV של תנועות החשבון"
+      "לא זוהתה שורת כותרות בקובץ — ודא שזה ייצוא של תנועות החשבון (תאריך, פרטים, זכות...)"
     );
   }
   const required: (keyof RawRow)[] = ["txnDate", "credit"];
@@ -193,10 +216,9 @@ export function parseBankCsv(buffer: Buffer): ParsedBankFile {
   let debitRowsFiltered = 0;
   let duplicatesInFile = 0;
 
-  for (let i = headerRowNumber; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    const cells = splitCsvLine(line);
+  for (let i = headerRowNumber; i < table.length; i++) {
+    const cells = table[i];
+    if (!cells.some((c) => c && c.trim())) continue;
     const raw = {} as RawRow;
     for (const { index, field } of headerMap) {
       raw[field] = cells[index] ?? "";

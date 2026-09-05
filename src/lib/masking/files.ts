@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { buildColumnMapping, type ExcelClientField } from "@/lib/clients/excel";
-import { decodeBankFile } from "@/lib/bank/csv";
+import { decodeBankFile, mapBankHeaders } from "@/lib/bank/csv";
+import { cellToText } from "@/lib/bank/xlsx";
 import {
   maskName,
   maskTaxId,
@@ -9,6 +10,94 @@ import {
   maskEmail,
   maskDetailsField,
 } from "./mask";
+
+export type ExcelKind = "clients" | "bank";
+
+/**
+ * זיהוי סוג ה-xlsx לפי שורת הכותרות: דף חשבון (תאריך/פרטים/זכות…)
+ * או דוח לקוחות (שם/מספר/תיק ניכויים…). מחזיר גם את מספר השורה.
+ */
+export function detectExcelKind(
+  ws: ExcelJS.Worksheet
+): { kind: ExcelKind; headerRowNumber: number } | null {
+  for (let r = 1; r <= Math.min(ws.rowCount, 20); r++) {
+    const row = ws.getRow(r);
+    const texts: string[] = [];
+    const cells: { index: number; header: string }[] = [];
+    row.eachCell({ includeEmpty: false }, (cell, col) => {
+      const t = cellToText(cell);
+      texts[col - 1] = t;
+      cells.push({ index: col, header: t });
+    });
+    if (mapBankHeaders(texts.map((t) => t ?? "")).length >= 4) {
+      return { kind: "bank", headerRowNumber: r };
+    }
+    if (buildColumnMapping(cells).columns.filter((c) => c.field).length >= 3) {
+      return { kind: "clients", headerRowNumber: r };
+    }
+  }
+  return null;
+}
+
+/**
+ * ממסך דף חשבון בפורמט xlsx: שדה "פרטים" (שם המשלם + מפתח, בשמירה
+ * על התבנית) ועמודת "חשבון". סכומים, תאריכים ואסמכתאות — לא נוגעים.
+ */
+export async function maskBankExcel(buffer: Buffer): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  const ws = wb.worksheets[0];
+  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  const detected = detectExcelKind(ws);
+  if (!detected || detected.kind !== "bank") {
+    throw new Error("לא זוהתה שורת כותרות של דף חשבון בקובץ");
+  }
+
+  const headerCells: string[] = [];
+  ws.getRow(detected.headerRowNumber).eachCell({ includeEmpty: false }, (cell, col) => {
+    headerCells[col - 1] = cellToText(cell);
+  });
+  const headerMap = mapBankHeaders(headerCells.map((t) => t ?? ""));
+  const textColumns = headerMap
+    .filter((m) => m.field === "details" || m.field === "account" || m.field === "description")
+    .map((m) => m.index + 1);
+
+  for (let r = 1; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    if (r <= detected.headerRowNumber) {
+      // שורות הכותרת העליונות (כמו "תנועות בחשבון 12-345-67890") — רק מפתחות
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        if (typeof cell.value === "string") cell.value = maskDetailsField(cell.value);
+      });
+      continue;
+    }
+    for (const col of textColumns) {
+      const cell = row.getCell(col);
+      const t = cellToText(cell);
+      if (t.trim()) cell.value = maskDetailsField(t);
+    }
+  }
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+/** נקודת כניסה ל-xlsx: מזהה לבד אם זה דוח לקוחות או דף חשבון. */
+export async function maskExcelFile(
+  buffer: Buffer
+): Promise<{ masked: Buffer; kind: ExcelKind }> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  const ws = wb.worksheets[0];
+  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  const detected = detectExcelKind(ws);
+  if (!detected) {
+    throw new Error(
+      "לא זוהה סוג הקובץ — לא נמצאו כותרות של דוח לקוחות (שם, מספר…) או של דף חשבון (תאריך, פרטים, זכות…)"
+    );
+  }
+  return detected.kind === "bank"
+    ? { masked: await maskBankExcel(buffer), kind: "bank" }
+    : { masked: await maskClientsExcel(buffer), kind: "clients" };
+}
 
 // מיסוך קבצים שלמים — הפלט באותו פורמט ובאותו קידוד בדיוק כמו המקור.
 // שום דבר לא נשמר: קלט נכנס, פלט יוצא, וזהו.

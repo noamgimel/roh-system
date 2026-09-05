@@ -110,11 +110,11 @@ export default function BankUpload() {
       <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
         <label className="block">
           <span className="block text-sm font-medium mb-2">
-            קובץ CSV מייצוא תנועות החשבון (בנק הפועלים)
+            ייצוא תנועות החשבון מאתר הבנק — CSV או Excel (xlsx)
           </span>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv"
             disabled={busy}
             onChange={(e) => {
               const f = e.target.files?.[0];

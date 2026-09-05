@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { parseBankCsv } from "@/lib/bank/csv";
+import { parseBankFile } from "@/lib/bank/xlsx";
 import { previewBankFile } from "@/lib/bank/import";
 
 export async function POST(req: Request) {
@@ -10,7 +10,10 @@ export async function POST(req: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "לא צורף קובץ" }, { status: 400 });
     }
-    const parsed = parseBankCsv(Buffer.from(await file.arrayBuffer()));
+    const parsed = await parseBankFile(
+      Buffer.from(await file.arrayBuffer()),
+      file.name
+    );
     const preview = await previewBankFile(sql, parsed, file.name);
     return NextResponse.json({ data: preview });
   } catch (e) {

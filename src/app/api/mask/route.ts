@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { getActor } from "@/lib/auth/actor";
-import { maskClientsExcel, maskBankCsvFile } from "@/lib/masking/files";
+import { maskExcelFile, maskBankCsvFile } from "@/lib/masking/files";
 
 // כלי המיסוך — זמני לתקופת הפיתוח. עיבוד בזיכרון בלבד:
 // הקובץ לא נכתב לדיסק, לא נשמר ב-DB, ולא נשלח לשום שירות חיצוני.
@@ -21,8 +21,12 @@ export async function POST(req: Request) {
 
     let masked: Buffer;
     let contentType: string;
+    let kind = "csv";
     if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-      masked = await maskClientsExcel(buffer);
+      // מזהה לבד: דוח לקוחות או דף חשבון שיוצא לאקסל
+      const result = await maskExcelFile(buffer);
+      masked = result.masked;
+      kind = result.kind;
       contentType =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     } else if (lower.endsWith(".csv")) {
@@ -40,7 +44,7 @@ export async function POST(req: Request) {
       actor: await getActor(),
       action: "mask_file",
       entity: "masking",
-      after: { file_name: file.name, size_bytes: buffer.length },
+      after: { file_name: file.name, size_bytes: buffer.length, kind },
     });
 
     return new Response(new Uint8Array(masked), {

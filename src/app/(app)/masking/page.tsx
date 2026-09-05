@@ -52,7 +52,7 @@ export default function MaskingPage() {
       <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
         <label className="block">
           <span className="block text-sm font-medium mb-2">
-            קובץ למיסוך (.xlsx לקוחות / .csv בנק)
+            קובץ למיסוך — דוח לקוחות או דף חשבון (xlsx / csv, הסוג מזוהה לבד)
           </span>
           <input
             type="file"
