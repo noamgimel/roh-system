@@ -1,6 +1,11 @@
 import ExcelJS from "exceljs";
 import { buildColumnMapping, type ExcelClientField } from "@/lib/clients/excel";
-import { decodeBankFile, mapBankHeaders } from "@/lib/bank/csv";
+import {
+  decodeBankFile,
+  mapBankHeaders,
+  isBankHeaderRow,
+  splitCsvLine,
+} from "@/lib/bank/csv";
 import { cellToText } from "@/lib/bank/xlsx";
 import {
   maskName,
@@ -58,24 +63,24 @@ export async function maskBankExcel(buffer: Buffer): Promise<Buffer> {
     headerCells[col - 1] = cellToText(cell);
   });
   const headerMap = mapBankHeaders(headerCells.map((t) => t ?? ""));
-  const textColumns = headerMap
-    .filter((m) => m.field === "details" || m.field === "account" || m.field === "description")
-    .map((m) => m.index + 1);
+  // עמודת סוג הפעולה ("העברה", "זיכוי ממסד"…) אינה מזהה ונחוצה לכיול
+  // כללי ההחרגה — היא היחידה שנשארת. כל תא טקסט אחר בשורות הנתונים ממוסך.
+  const descriptionCol = headerMap.find((m) => m.field === "description");
+  const keepCols = new Set(descriptionCol ? [descriptionCol.index + 1] : []);
 
   for (let r = 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
-    if (r <= detected.headerRowNumber) {
-      // שורות הכותרת העליונות (כמו "תנועות בחשבון 12-345-67890") — רק מפתחות
-      row.eachCell({ includeEmpty: false }, (cell) => {
-        if (typeof cell.value === "string") cell.value = maskDetailsField(cell.value);
-      });
-      continue;
-    }
-    for (const col of textColumns) {
-      const cell = row.getCell(col);
+    if (r === detected.headerRowNumber) continue; // הכותרות עצמן — לא מזהות
+    row.eachCell({ includeEmpty: false }, (cell, col) => {
+      if (r > detected.headerRowNumber && keepCols.has(col)) return;
+      const v = cell.value;
+      const isText =
+        typeof v === "string" ||
+        (typeof v === "object" && v !== null && "richText" in v);
+      if (!isText) return; // תאריכים, סכומים, אסמכתאות — לא נוגעים
       const t = cellToText(cell);
       if (t.trim()) cell.value = maskDetailsField(t);
-    }
+    });
   }
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
@@ -182,11 +187,37 @@ export function encodeCp1255Text(text: string): Buffer {
  */
 export function maskBankCsvFile(buffer: Buffer): Buffer {
   const { text, encoding } = decodeBankFile(buffer);
-  const masked = text
-    .split(/\r?\n/)
-    .map((line) => (line.trim() ? maskDetailsField(line) : line))
-    .join("\r\n");
+  const lines = text.split(/\r?\n/);
+
+  // איתור שורת הכותרות — היא ועמודת סוג הפעולה נשארות כמות שהן
+  let headerIdx = -1;
+  let descriptionCol = -1;
+  for (let i = 0; i < Math.min(lines.length, 20); i++) {
+    const cells = splitCsvLine(lines[i]);
+    if (isBankHeaderRow(cells)) {
+      headerIdx = i;
+      descriptionCol =
+        mapBankHeaders(cells).find((m) => m.field === "description")?.index ?? -1;
+      break;
+    }
+  }
+
+  const quote = (cell: string) =>
+    /[",\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
+
+  const masked = lines.map((line, i) => {
+    if (!line.trim() || i === headerIdx) return line;
+    if (headerIdx === -1 || i < headerIdx) return maskDetailsField(line); // שורות כותרת-מסמך
+    return splitCsvLine(line)
+      .map((cell, col) =>
+        col === descriptionCol || !/[א-ת]/.test(cell) ? cell : maskDetailsField(cell)
+      )
+      .map(quote)
+      .join(",");
+  });
+
+  const out = masked.join("\r\n");
   return encoding === "windows-1255"
-    ? encodeCp1255Text(masked)
-    : Buffer.from(masked, "utf8");
+    ? encodeCp1255Text(out)
+    : Buffer.from(out, "utf8");
 }

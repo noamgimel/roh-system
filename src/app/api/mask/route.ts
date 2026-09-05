@@ -19,6 +19,17 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
 
+    // xlsx מוצפן בסיסמה נשמר כקובץ OLE (D0 CF 11 E0) ולא כ-zip — אי אפשר לקרוא אותו
+    if (buffer.subarray(0, 4).toString("hex") === "d0cf11e0") {
+      return NextResponse.json(
+        {
+          error:
+            "הקובץ מוגן בסיסמה. באקסל: קובץ ← סיסמאות ← נקה את השדות ← שמור בשם חדש, והעלה את הקובץ הלא-מוגן.",
+        },
+        { status: 400 }
+      );
+    }
+
     let masked: Buffer;
     let contentType: string;
     let kind = "csv";

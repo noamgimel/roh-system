@@ -28,10 +28,13 @@ export interface ParsedBankFile {
   duplicatesInFile: number; // שורות זהות לחלוטין בתוך הקובץ עצמו
 }
 
+// הכותרות מושוות אחרי הסרת גרשיים/מרכאות ורווחים כפולים
+// (הייצוא לאקסל של הפועלים כותב למשל "יתרה בש''ח").
 const HEADER_ALIASES: Record<string, keyof RawRow> = {
   "תאריך": "txnDate",
   "תיאור הפעולה": "description",
   "תיאור פעולה": "description",
+  "הפעולה": "description", // ייצוא xlsx של הפועלים
   "פרטים": "details",
   "חשבון": "account",
   "אסמכתא": "reference",
@@ -40,8 +43,16 @@ const HEADER_ALIASES: Record<string, keyof RawRow> = {
   "חובה": "debit",
   "זכות": "credit",
   "יתרה לאחר פעולה": "balanceAfter",
+  "יתרה בשח": "balanceAfter", // "יתרה בש''ח" אחרי ניקוי גרשיים
   "יתרה": "balanceAfter",
 };
+
+function cleanHeader(raw: string): string {
+  return (raw ?? "")
+    .replace(/["'״׳`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 interface RawRow {
   txnDate: string;
@@ -156,7 +167,7 @@ export type BankHeaderMap = { index: number; field: keyof RawRow }[];
 export function mapBankHeaders(cells: string[]): BankHeaderMap {
   const mapped: BankHeaderMap = [];
   cells.forEach((c, idx) => {
-    const clean = (c ?? "").replace(/\s+/g, " ").trim();
+    const clean = cleanHeader(c);
     const field = HEADER_ALIASES[clean];
     if (field && !mapped.some((m) => m.field === field)) {
       mapped.push({ index: idx, field });
