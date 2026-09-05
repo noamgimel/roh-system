@@ -35,12 +35,12 @@ async function main() {
         update bank_transactions
         set parsed_payer_name   = ${parsed?.payerName ?? null},
             parsed_bank_key     = ${parsed?.bankKey ?? null},
-            parsed_payer_tax_id = ${parsed?.payerTaxId ?? null},
+            parsed_payer_account = ${parsed?.payerAccount ?? null},
             parsed_purpose      = ${parsed?.purpose ?? null}
         where id = ${row.id as string}
           and (parsed_payer_name   is distinct from ${parsed?.payerName ?? null}
             or parsed_bank_key     is distinct from ${parsed?.bankKey ?? null}
-            or parsed_payer_tax_id is distinct from ${parsed?.payerTaxId ?? null}
+            or parsed_payer_account is distinct from ${parsed?.payerAccount ?? null}
             or parsed_purpose      is distinct from ${parsed?.purpose ?? null})
         returning id
       `;

@@ -37,19 +37,19 @@ async function main() {
   console.log("\nסוגי פעולה (תיאור):", hist(parsed.rows.map((r) => r.description)));
 
   // כיסוי הפרסר
-  let withPayer = 0, withKey = 0, withId = 0, withPurpose = 0;
-  const idInDetails = /(?<![\d-])\d{9}(?![\d-])/;
+  let withPayer = 0, withKey = 0, withAcc = 0, withPurpose = 0;
+  const accInDetails = /(?<![\d-])\d{9}(?![\d-])/;
   const unparsed: string[] = [];
   const patterns: string[] = [];
   for (const r of parsed.rows) {
     const p = parsePayerDetails(r.details);
     if (p) { withPayer++; if (p.bankKey) withKey++; if (p.purpose) withPurpose++; }
     else unparsed.push(`${r.description ?? ""} | ${r.details ?? ""}`);
-    if (r.details && idInDetails.test(r.details)) withId++;
+    if (r.details && accInDetails.test(r.details)) withAcc++;
     if (r.details) patterns.push(pattern(r.details));
   }
   const n = parsed.rows.length || 1;
-  console.log(`\nפרסר המשלם: שם חולץ ב-${withPayer}/${parsed.rows.length} (${Math.round(withPayer / n * 100)}%) · bank_key ב-${withKey} · ת"ז בפרטים ב-${withId} · מטרה ב-${withPurpose}`);
+  console.log(`\nפרסר המשלם: שם חולץ ב-${withPayer}/${parsed.rows.length} (${Math.round(withPayer / n * 100)}%) · bank_key ב-${withKey} · מס' חשבון (מח-ן) ב-${withAcc} · מטרה ב-${withPurpose}`);
   console.log("תבניות 'פרטים' נפוצות:", hist(patterns, 10));
   console.log(`\nשורות זכות ללא משלם (${unparsed.length}) — תיאור | פרטים:`);
   for (const u of unparsed.slice(0, 25)) console.log("  " + u.slice(0, 110));

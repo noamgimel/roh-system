@@ -14,42 +14,44 @@ export interface ParsedPayerDetails {
   payerName: string;
   purpose: string | null;
   bankKey: string | null; // בנק-סניף-חשבון מנורמל
-  payerTaxId: string | null; // ת"ז/ח"פ של המשלם — 9 ספרות מרופדות
+  payerAccount: string | null; // מספר החשבון של המשלם ("מח-ן:") — מזהה יציב
 }
 
 // בנק (1-2 ספרות) - סניף (1-3 ספרות) - חשבון (4 ספרות ומעלה)
 const ACCOUNT_AT_END = /(\d{1,2}-\d{1,3}-\d{4,10})\s*$/;
 
-// בקובץ האמיתי של הפועלים הפרטים מסתיימים ב-"(מס ת-ז:012345675" —
-// ת"ז/ח"פ של בעל החשבון המשלם. תבניות: ת-ז / ת.ז / ת"ז / תז / ח.פ / ח"פ / מס
-const TAX_ID_LABELED =
-  /(?:ת["״'.\-\s]?ז|ח["״'.\-\s]?פ|מס['׳]?)\s*[:.\-]?\s*(\d{8,9})(?!\d)/;
-// גיבוי: 9 ספרות עומדות לבד (לא חלק ממפתח חשבון)
-const TAX_ID_BARE = /(?<![\d-])(\d{9})(?![\d-])/;
+// בקובץ האמיתי של הפועלים הפרטים כוללים "מח-ן:123456789" — מספר החשבון
+// של המשלם (בלי בנק/סניף). אומת מול המקור: זה אינו ת"ז ואינו מצליב
+// לת"ז לקוח — אבל הוא יציב לכל משלם, ולכן מפתח למידה מצוין.
+// תוויות: מח-ן / מח"ן / מחן / ח-ן / חשבון / מס' חשבון
+const ACCOUNT_LABELED =
+  /(?:מ?ח["״'.\-\s]?ן|חשבון|מס['׳]?\s*ח["״'.\-\s]?ן)\s*[:.\-]?\s*(\d{5,12})(?!\d)/;
+// גיבוי: 9 ספרות עומדות לבד (לא חלק ממפתח בנק-סניף-חשבון)
+const ACCOUNT_BARE = /(?<![\d-])(\d{9})(?![\d-])/;
 
-/** מחלץ ת"ז/ח"פ מטקסט הפרטים; מחזיר את המספר המרופד ואת הטקסט בלעדיו. */
-export function extractTaxId(text: string): { taxId: string | null; rest: string } {
-  const labeled = text.match(TAX_ID_LABELED);
+/** מחלץ מספר חשבון משלם מטקסט הפרטים; מחזיר את המספר ואת הטקסט בלעדיו. */
+export function extractPayerAccount(text: string): { account: string | null; rest: string } {
+  const labeled = text.match(ACCOUNT_LABELED);
   if (labeled) {
     const full = labeled[0];
     const idx = labeled.index ?? 0;
-    // מסירים שאריות שלפני התווית: סוגר פותח ו/או "מס" (כמו ב-"(מס ת-ז:…")
+    // מסירים שאריות שלפני התווית: סוגר פותח ו/או "מס'" (כמו ב-"(מס מח-ן:…")
     const before = text
       .slice(0, idx)
       .replace(/[\s(]*(?:מס['׳]?)?[\s(]*$/, "");
     return {
-      taxId: labeled[1].padStart(9, "0"),
+      account: labeled[1].replace(/^0+(?=\d)/, ""),
       rest: (before + text.slice(idx + full.length)).replace(/\s+/g, " ").trim(),
     };
   }
-  const bare = text.match(TAX_ID_BARE);
+  const bare = text.match(ACCOUNT_BARE);
   if (bare) {
     return {
-      taxId: bare[1],
+      account: bare[1].replace(/^0+(?=\d)/, ""),
       rest: text.replace(bare[0], " ").replace(/\s+/g, " ").trim(),
     };
   }
-  return { taxId: null, rest: text };
+  return { account: null, rest: text };
 }
 
 /**
@@ -74,10 +76,10 @@ export function parsePayerDetails(
   if (!m) return null;
   let rest = m[1];
 
-  // ת"ז של המשלם — המפתח החזק בקובץ האמיתי; מוסרת מהטקסט לפני שאר הפענוח
-  const idResult = extractTaxId(rest);
-  const payerTaxId = idResult.taxId;
-  rest = idResult.rest;
+  // מספר החשבון של המשלם — המפתח היציב בקובץ האמיתי; מוסר מהטקסט לפני שאר הפענוח
+  const accResult = extractPayerAccount(rest);
+  const payerAccount = accResult.account;
+  rest = accResult.rest;
 
   let bankKey: string | null = null;
   const acc = rest.match(ACCOUNT_AT_END);
@@ -101,5 +103,5 @@ export function parsePayerDetails(
   }
 
   if (!payerName) return null;
-  return { payerName, purpose, bankKey, payerTaxId };
+  return { payerName, purpose, bankKey, payerAccount };
 }

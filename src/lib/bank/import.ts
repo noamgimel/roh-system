@@ -20,7 +20,7 @@ export interface BankPreviewRow {
   ignoredReason: string | null;
   payerName: string | null; // חולץ משדה "פרטים"; null = לתור הידני
   bankKey: string | null;
-  payerTaxId: string | null; // ת"ז המשלם — המפתח החזק בקובץ האמיתי
+  payerAccount: string | null; // מספר חשבון המשלם ("מח-ן") — מפתח למידה יציב
   purpose: string | null;
 }
 
@@ -87,7 +87,7 @@ export async function previewBankFile(
       ignoredReason,
       payerName: payer?.payerName ?? null,
       bankKey: payer?.bankKey ?? null,
-      payerTaxId: payer?.payerTaxId ?? null,
+      payerAccount: payer?.payerAccount ?? null,
       purpose: payer?.purpose ?? null,
     };
   });
@@ -146,13 +146,13 @@ export async function commitBankFile(
         insert into bank_transactions
           (row_hash, batch_id, txn_date, value_date, description, details,
            account, reference, credit, balance_after,
-           parsed_payer_name, parsed_bank_key, parsed_payer_tax_id, parsed_purpose,
+           parsed_payer_name, parsed_bank_key, parsed_payer_account, parsed_purpose,
            status, ignored_reason)
         values
           (${r.rowHash}, ${batch.id as string}, ${r.txnDate}, ${r.valueDate},
            ${r.description}, ${r.details}, ${r.account}, ${r.reference},
            ${r.credit}, ${r.balanceAfter},
-           ${p.payerName}, ${p.bankKey}, ${p.payerTaxId}, ${p.purpose},
+           ${p.payerName}, ${p.bankKey}, ${p.payerAccount}, ${p.purpose},
            ${p.disposition === "ignored" ? "ignored" : "new"},
            ${p.ignoredReason})
         on conflict (row_hash) do nothing

@@ -23,9 +23,7 @@ export interface MatchResult {
 interface ClientRow {
   id: string;
   name: string;
-  taxId: string;
   spouseName: string | null;
-  spouseTaxId: string | null;
   balance: string | null;
 }
 
@@ -34,7 +32,7 @@ interface TxnRow {
   credit: string;
   parsedPayerName: string | null;
   parsedBankKey: string | null;
-  parsedPayerTaxId: string | null;
+  parsedPayerAccount: string | null;
 }
 
 /** משלם מוכר (לפי חשבון או לפי ת"ז) → הכרעה לפי מספר הקישורים שלו */
@@ -80,52 +78,13 @@ async function evaluate(
       if (r) return r;
     }
   }
-  if (txn.parsedPayerTaxId) {
+  if (txn.parsedPayerAccount) {
     const payers = await sql`
-      select id from payers where tax_id = ${txn.parsedPayerTaxId}
+      select id from payers where account_no = ${txn.parsedPayerAccount}
     `;
     if (payers.length > 0) {
-      const r = await knownPayerResult(sql, payers[0].id as string, 'ת"ז משלם');
+      const r = await knownPayerResult(sql, payers[0].id as string, "חשבון משלם (מח-ן)");
       if (r) return r;
-    }
-
-    // כלל 1א — ת"ז המשלם (מהבנק) זהה לת"ז של לקוח: זיהוי ודאי, אוטומטי.
-    // הבנק מדווח את ת"ז בעל החשבון — זו זהות, לא כתיב.
-    const byTaxId = clients.filter((c) => c.taxId === txn.parsedPayerTaxId);
-    if (byTaxId.length === 1) {
-      return {
-        clientId: byTaxId[0].id,
-        confidence: "exact",
-        reason: 'ת"ז המשלם זהה לת"ז הלקוח',
-        status: "matched",
-      };
-    }
-    if (byTaxId.length > 1) {
-      return {
-        clientId: null,
-        confidence: "none",
-        reason: `${byTaxId.length} לקוחות עם אותה ת"ז — נדרשת הכרעה ידנית`,
-        status: "needs_review",
-      };
-    }
-    // כלל 1ב — ת"ז המשלם היא ת"ז של בן/בת זוג של לקוח: הצעה בביטחון גבוה
-    // (בן הזוג עשוי להיות גם לקוח בעצמו — לכן לא אוטומטי)
-    const bySpouse = clients.filter((c) => c.spouseTaxId === txn.parsedPayerTaxId);
-    if (bySpouse.length === 1) {
-      return {
-        clientId: bySpouse[0].id,
-        confidence: "high",
-        reason: 'ת"ז המשלם זהה לת"ז בן/בת הזוג של הלקוח',
-        status: "needs_review",
-      };
-    }
-    if (bySpouse.length > 1) {
-      return {
-        clientId: null,
-        confidence: "none",
-        reason: `ת"ז המשלם מופיעה כבן/בת זוג אצל ${bySpouse.length} לקוחות — נדרשת הכרעה ידנית`,
-        status: "needs_review",
-      };
     }
   }
 
@@ -205,13 +164,13 @@ export async function runMatching(
 ): Promise<MatchingReport> {
   return sql.begin(async (tx) => {
     const txns = await tx`
-      select id, credit, parsed_payer_name, parsed_bank_key, parsed_payer_tax_id
+      select id, credit, parsed_payer_name, parsed_bank_key, parsed_payer_account
       from bank_transactions
       where status in ('new', 'needs_review')
       order by txn_date, created_at
     `;
     const clients = await tx`
-      select c.id, c.name, c.tax_id, c.spouse_name, c.spouse_tax_id, b.balance
+      select c.id, c.name, c.spouse_name, b.balance
       from clients c
       left join client_balances b on b.id = c.id
       where c.is_active
@@ -289,14 +248,14 @@ export async function confirmMatch(
       returning *
     `;
 
-    // למידה: לפי מפתח חשבון ו/או ת"ז משלם — שם לבדו אינו מפתח אמין
+    // למידה: לפי בנק-סניף-חשבון ו/או מספר חשבון (מח-ן) — שם לבדו אינו מפתח אמין
     const bankKey = (txn.parsedBankKey as string | null) ?? null;
-    const payerTaxId = (txn.parsedPayerTaxId as string | null) ?? null;
-    if (bankKey || payerTaxId) {
+    const payerAccount = (txn.parsedPayerAccount as string | null) ?? null;
+    if (bankKey || payerAccount) {
       const existing = await tx`
-        select id, bank_key, tax_id from payers
+        select id, bank_key, account_no from payers
         where (${bankKey}::text is not null and bank_key = ${bankKey})
-           or (${payerTaxId}::text is not null and tax_id = ${payerTaxId})
+           or (${payerAccount}::text is not null and account_no = ${payerAccount})
         limit 1
       `;
       let payerId: string;
@@ -306,14 +265,14 @@ export async function confirmMatch(
         await tx`
           update payers
           set bank_key = coalesce(bank_key, ${bankKey}),
-              tax_id = coalesce(tax_id, ${payerTaxId}),
+              account_no = coalesce(account_no, ${payerAccount}),
               display_name = coalesce(${txn.parsedPayerName as string | null}, display_name)
           where id = ${payerId}
         `;
       } else {
         const [created] = await tx`
-          insert into payers (display_name, bank_key, tax_id)
-          values (${txn.parsedPayerName ?? "משלם ללא שם"}, ${bankKey}, ${payerTaxId})
+          insert into payers (display_name, bank_key, account_no)
+          values (${txn.parsedPayerName ?? "משלם ללא שם"}, ${bankKey}, ${payerAccount})
           returning id
         `;
         payerId = created.id as string;
@@ -339,7 +298,7 @@ export async function confirmMatch(
         matched_client_id: clientId,
         client_name: client.name,
         learned_bank_key: txn.parsedBankKey ?? null,
-        learned_tax_id: txn.parsedPayerTaxId ?? null,
+        learned_account: txn.parsedPayerAccount ?? null,
       },
     });
     return updated;

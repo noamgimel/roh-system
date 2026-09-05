@@ -28,7 +28,7 @@ describe("פרסר המשלם — שדה פרטים", () => {
       payerName: "ישראל ישראלי",
       purpose: "אוגוסט",
       bankKey: "12-345-11111",
-      payerTaxId: null,
+      payerAccount: null,
     });
   });
 

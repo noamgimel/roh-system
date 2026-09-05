@@ -35,7 +35,7 @@ async function main() {
     console.log(`\nמנוע ההתאמה (יום ראשון, טבלת כינויים ריקה): הוערכו ${m.evaluated} · ודאי-אוטומטי ${m.matchedExact} · הצעות ${m.suggested} · תור ידני ${m.queued}`);
 
     const rows = await sql`
-      select t.txn_date, t.credit, t.parsed_payer_name, t.parsed_payer_tax_id, t.parsed_bank_key,
+      select t.txn_date, t.credit, t.parsed_payer_name, t.parsed_payer_account, t.parsed_bank_key,
              t.status, t.match_confidence, t.match_reason, c.name as client_name
       from bank_transactions t left join clients c on c.id = t.matched_client_id
       where t.status <> 'ignored'
@@ -51,7 +51,7 @@ async function main() {
 
     console.log("\nתנועות בתור הידני (ללא הצעה):");
     for (const r of rows.filter((r) => !r.clientName)) {
-      console.log(`  ${r.txnDate.toISOString().slice(0, 10)}  ₪${String(r.credit).padStart(9)}  משלם="${r.parsedPayerName ?? "—"}"  ת"ז=${r.parsedPayerTaxId ?? "—"}  key=${r.parsedBankKey ?? "—"}`);
+      console.log(`  ${r.txnDate.toISOString().slice(0, 10)}  ₪${String(r.credit).padStart(9)}  משלם="${r.parsedPayerName ?? "—"}"  חשבון=${r.parsedPayerAccount ?? "—"}  key=${r.parsedBankKey ?? "—"}`);
     }
     console.log("\nדוגמאות התאמה:");
     for (const r of rows.filter((r) => r.clientName).slice(0, 8)) {
