@@ -97,6 +97,7 @@ export default async function ClientCardPage({
           <Detail label='תדירות מע"מ' value={client.vatFrequency} />
           <Detail label="102 ביטוח לאומי" value={client.ni102Frequency} />
           <Detail label="102 מס הכנסה" value={client.tax102Frequency} />
+          <Detail label="דיווח 126" value={client.form126} />
           <Detail label="שיעור מקדמות" value={client.advancesRate} />
           <Detail label="תדירות מקדמות" value={client.advancesFrequency} />
           <Detail label="הרשאות" value={client.permissions} />

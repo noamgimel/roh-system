@@ -15,6 +15,7 @@ const PREFILL_MAP: Record<string, string> = {
   vat_frequency: "vatFrequency",
   ni_102_frequency: "ni102Frequency",
   tax_102_frequency: "tax102Frequency",
+  form_126: "form126",
   advances_rate: "advancesRate",
   advances_frequency: "advancesFrequency",
   permissions: "permissions",

@@ -44,6 +44,7 @@ const IMPORTABLE_FIELDS: ExcelClientField[] = [
   "vat_frequency",
   "ni_102_frequency",
   "tax_102_frequency",
+  "form_126",
   "advances_rate",
   "advances_frequency",
   "permissions",

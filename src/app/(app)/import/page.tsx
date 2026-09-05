@@ -55,6 +55,7 @@ const FIELD_LABELS: Record<string, string> = {
   vat_frequency: 'תדירות מע"מ',
   ni_102_frequency: "102 ביטוח לאומי",
   tax_102_frequency: "102 מס הכנסה",
+  form_126: "דיווח 126",
   advances_rate: "שיעור מקדמות",
   advances_frequency: "תדירות מקדמות",
   permissions: "הרשאות",

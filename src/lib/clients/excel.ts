@@ -27,6 +27,7 @@ export type ExcelClientField =
   | "phone"
   | "email"
   | "rate" // תעריף חודשי — נקלט רק אם העמודה קיימת בקובץ
+  | "form_126" // עמודת "126" בקובץ האמיתי — דיווח 126 (טקסט חופשי)
   | "is_active";
 
 export interface ParsedClientRow {
@@ -49,7 +50,7 @@ export interface ParsedWorkbook {
 }
 
 // מיפוי כותרת → שדה. כותרות שחוזרות פעמיים ("מקדמות") ממופות לפי סדר הופעה.
-// עמודת "6" מהאקסל של הלקוח נשארת לא ממופה עד שתתברר משמעותה (סעיף 15.7 באפיון).
+// עמודת "6" מהאפיון התבררה בקובץ האמיתי כ-"126" (דיווח 126) — ממופה.
 const HEADER_MAP: Record<string, ExcelClientField | ExcelClientField[]> = {
   "מספר לקוח": "client_no",
   "מספר": "tax_id",
@@ -61,9 +62,16 @@ const HEADER_MAP: Record<string, ExcelClientField | ExcelClientField[]> = {
   "בן זוג2": "spouse_tax_id",
   "102 ביטוח לאומי": "ni_102_frequency",
   "102 מס הכנסה": "tax_102_frequency",
+  "126": "form_126",
+  "טופס 126": "form_126",
   "מעמ": "vat_frequency",
   'מע"מ': "vat_frequency",
-  "מקדמות": ["advances_rate", "advances_frequency"],
+  // בקובץ האמיתי: "מקדמות" = תדירות, "%מקדמות" = שיעור.
+  // אם "מקדמות" מופיעה פעמיים (קבצים ישנים) — השנייה היא השיעור.
+  "מקדמות": ["advances_frequency", "advances_rate"],
+  "%מקדמות": "advances_rate",
+  "מקדמות %": "advances_rate",
+  "מקדמות%": "advances_rate",
   "הרשאות": "permissions",
   "טלפון": "phone",
   "אימייל": "email",
@@ -199,6 +207,18 @@ export async function parseClientsWorkbook(
       if (!col.field) continue;
       const raw = row.getCell(col.index).text;
       data[col.field] = parseCell(col.field, raw === "" ? null : raw);
+    }
+
+    // שורה "ריקה למעשה" (בלי שם ובלי ת"ז ובלי שום טקסט אחר) — למשל שורות
+    // עודפות בתחתית הקובץ — מדולגת בשקט ואינה נספרת כשגיאה
+    const hasAnyText = (Object.keys(data) as ExcelClientField[]).some(
+      (f) => f !== "client_no" && f !== "is_active" && data[f] !== null && data[f] !== undefined
+    );
+    if (!hasAnyText) continue;
+
+    // בקובץ האמיתי עמודת "סוג" משמשת גם כסטטוס: "לא פעיל" ⇒ לקוח לא פעיל
+    if (typeof data.entity_type === "string" && /לא פעיל/.test(data.entity_type)) {
+      data.is_active = false;
     }
 
     // ולידציה

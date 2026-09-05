@@ -33,13 +33,26 @@ describe("פענוח קובץ האקסל", () => {
     expect(parsed.unmappedHeaders).toContain("6");
   });
 
-  it('שתי עמודות "מקדמות" ממופות לפי סדר: שיעור ואז תדירות', async () => {
+  it('שתי עמודות "מקדמות" ממופות לפי סדר: תדירות ואז שיעור', async () => {
     const parsed = await parseClientsWorkbook(fixture);
     const advances = parsed.columns.filter((c) => c.header === "מקדמות");
     expect(advances.map((c) => c.field)).toEqual([
-      "advances_rate",
       "advances_frequency",
+      "advances_rate",
     ]);
+  });
+
+  it('הפורמט האמיתי: "מקדמות" = תדירות, "%מקדמות" = שיעור', async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("לקוחות");
+    ws.getRow(1).values = ["מספר", "שם", "מקדמות", "%מקדמות"];
+    ws.getRow(2).values = [777000026, "לקוח מקדמות", "דו חודשי", 0.035];
+    const parsed = await parseClientsWorkbook(
+      Buffer.from(await wb.xlsx.writeBuffer())
+    );
+    expect(parsed.rows[0].data.advances_frequency).toBe("דו חודשי");
+    expect(parsed.rows[0].data.advances_rate).toBe(0.035);
   });
 
   it("מנרמל ת\"ז: אפס מוביל שאבד באקסל מוחזר בריפוד ל-9 ספרות", async () => {

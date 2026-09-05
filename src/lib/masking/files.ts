@@ -19,6 +19,32 @@ import {
 export type ExcelKind = "clients" | "bank";
 
 /**
+ * חוברת פלט נקייה: ערכים בלבד, בלי עיצוב. סיבוב של קובץ מעוצב דרך
+ * exceljs משבש צבעי ערכת-נושא (יצא ורוד ולא קריא) — ולקובץ עבודה
+ * ממוסך ממילא אין צורך בעיצוב. נוסחאות מוחלפות בתוצאתן.
+ */
+export async function toCleanWorkbook(source: ExcelJS.Worksheet): Promise<Buffer> {
+  const out = new ExcelJS.Workbook();
+  const ws = out.addWorksheet(source.name.slice(0, 31) || "גיליון", {
+    views: [{ rightToLeft: true }],
+  });
+  for (let r = 1; r <= source.rowCount; r++) {
+    const src = source.getRow(r);
+    const values: ExcelJS.CellValue[] = [];
+    for (let c = 1; c <= source.columnCount; c++) {
+      const v = src.getCell(c).value;
+      if (v === null || v === undefined) values[c] = null;
+      else if (v instanceof Date || typeof v === "number" || typeof v === "string") values[c] = v;
+      else if (typeof v === "object" && "result" in v) values[c] = (v.result as ExcelJS.CellValue) ?? null;
+      else values[c] = src.getCell(c).text;
+    }
+    ws.getRow(r).values = values;
+  }
+  for (let c = 1; c <= source.columnCount; c++) ws.getColumn(c).width = 16;
+  return Buffer.from(await out.xlsx.writeBuffer());
+}
+
+/**
  * זיהוי סוג ה-xlsx לפי שורת הכותרות: דף חשבון (תאריך/פרטים/זכות…)
  * או דוח לקוחות (שם/מספר/תיק ניכויים…). מחזיר גם את מספר השורה.
  */
@@ -79,7 +105,7 @@ export async function maskBankExcel(buffer: Buffer): Promise<Buffer> {
       if (t.trim()) cell.value = maskDetailsField(t);
     });
   }
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  return toCleanWorkbook(ws);
 }
 
 /** נקודת כניסה ל-xlsx: מזהה לבד אם זה דוח לקוחות או דף חשבון. */
@@ -173,7 +199,7 @@ export async function maskClientsExcel(buffer: Buffer): Promise<Buffer> {
     }
   }
 
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  return toCleanWorkbook(ws);
 }
 
 /** קידוד טקסט חזרה ל-windows-1255 (עברית, ASCII, פיסוק נפוץ). */

@@ -44,6 +44,7 @@ export function normalizeNumber(raw: unknown): number | null {
 export function normalizeIsActive(raw: unknown): boolean {
   const s = normalizeText(raw);
   if (!s) return true;
-  const inactive = ["לא פעיל", "לא פעילה", "לא-פעיל", "סגור", "מוקפא", "עזב"];
+  // מהקובץ האמיתי: "לא פעילה משנת 2025", "עבר לרו"ח אחר ב1.3.25"
+  const inactive = ["לא פעיל", "לא פעילה", "לא-פעיל", "סגור", "מוקפא", "עזב", "עבר ל", "עברה ל", "נסגר", "הפסיק"];
   return !inactive.some((v) => s.includes(v));
 }

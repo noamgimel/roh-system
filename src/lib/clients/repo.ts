@@ -39,6 +39,7 @@ const CLIENT_FIELDS = [
   "vat_frequency",
   "ni_102_frequency",
   "tax_102_frequency",
+  "form_126",
   "advances_rate",
   "advances_frequency",
   "permissions",
