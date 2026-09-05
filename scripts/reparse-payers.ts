@@ -33,13 +33,15 @@ async function main() {
       const parsed = parsePayerDetails(row.details as string | null);
       const updated = await sql`
         update bank_transactions
-        set parsed_payer_name = ${parsed?.payerName ?? null},
-            parsed_bank_key   = ${parsed?.bankKey ?? null},
-            parsed_purpose    = ${parsed?.purpose ?? null}
+        set parsed_payer_name   = ${parsed?.payerName ?? null},
+            parsed_bank_key     = ${parsed?.bankKey ?? null},
+            parsed_payer_tax_id = ${parsed?.payerTaxId ?? null},
+            parsed_purpose      = ${parsed?.purpose ?? null}
         where id = ${row.id as string}
-          and (parsed_payer_name is distinct from ${parsed?.payerName ?? null}
-            or parsed_bank_key   is distinct from ${parsed?.bankKey ?? null}
-            or parsed_purpose    is distinct from ${parsed?.purpose ?? null})
+          and (parsed_payer_name   is distinct from ${parsed?.payerName ?? null}
+            or parsed_bank_key     is distinct from ${parsed?.bankKey ?? null}
+            or parsed_payer_tax_id is distinct from ${parsed?.payerTaxId ?? null}
+            or parsed_purpose      is distinct from ${parsed?.purpose ?? null})
         returning id
       `;
       if (updated.length > 0) changed++;
