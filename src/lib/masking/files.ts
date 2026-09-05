@@ -51,12 +51,9 @@ export function detectExcelKind(
 export async function maskBankExcel(buffer: Buffer): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer as unknown as ArrayBuffer);
-  const ws = wb.worksheets[0];
-  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
-  const detected = detectExcelKind(ws);
-  if (!detected || detected.kind !== "bank") {
-    throw new Error("לא זוהתה שורת כותרות של דף חשבון בקובץ");
-  }
+  if (wb.worksheets.length === 0) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  const detected = selectAndIsolateSheet(wb, "bank");
+  const ws = detected.ws;
 
   const headerCells: string[] = [];
   ws.getRow(detected.headerRowNumber).eachCell({ includeEmpty: false }, (cell, col) => {
@@ -91,14 +88,9 @@ export async function maskExcelFile(
 ): Promise<{ masked: Buffer; kind: ExcelKind }> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer as unknown as ArrayBuffer);
-  const ws = wb.worksheets[0];
-  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
-  const detected = detectExcelKind(ws);
-  if (!detected) {
-    throw new Error(
-      "לא זוהה סוג הקובץ — לא נמצאו כותרות של דוח לקוחות (שם, מספר…) או של דף חשבון (תאריך, פרטים, זכות…)"
-    );
-  }
+  if (wb.worksheets.length === 0) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  // סורק את כל הגיליונות — הראשון שמזוהה קובע את הסוג
+  const detected = selectAndIsolateSheet(wb);
   return detected.kind === "bank"
     ? { masked: await maskBankExcel(buffer), kind: "bank" }
     : { masked: await maskClientsExcel(buffer), kind: "clients" };
@@ -120,31 +112,51 @@ const EXCEL_FIELD_MASKERS: Partial<
   email: maskEmail,
 };
 
-/** ממסך קובץ אקסל לקוחות. מחזיר xlsx באותו מבנה בדיוק. */
-export async function maskClientsExcel(buffer: Buffer): Promise<Buffer> {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
-  const ws = wb.worksheets[0];
-  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
-
-  // איתור שורת הכותרות: השורה הראשונה עם לפחות 3 כותרות מוכרות
-  let headerRowNumber = -1;
-  let columns: { index: number; field: ExcelClientField | null }[] = [];
-  for (let r = 1; r <= Math.min(ws.rowCount, 20); r++) {
-    const cells: { index: number; header: string }[] = [];
-    ws.getRow(r).eachCell({ includeEmpty: false }, (cell, col) => {
-      cells.push({ index: col, header: cell.text });
-    });
-    const mapping = buildColumnMapping(cells);
-    if (mapping.columns.filter((c) => c.field).length >= 3) {
-      headerRowNumber = r;
-      columns = mapping.columns;
+/**
+ * חוברת עם כמה גיליונות: מאתר את הגיליון הרלוונטי (לקוחות או דף חשבון)
+ * ו**מוחק את כל השאר** מהפלט — גיליונות אחרים מכילים מידע שאין לנו בו
+ * צורך ואסור שידלוף דרך קובץ "ממוסך".
+ */
+export function selectAndIsolateSheet(
+  wb: ExcelJS.Workbook,
+  wanted?: ExcelKind
+): { ws: ExcelJS.Worksheet; kind: ExcelKind; headerRowNumber: number } {
+  let chosen: { ws: ExcelJS.Worksheet; kind: ExcelKind; headerRowNumber: number } | null = null;
+  for (const ws of wb.worksheets) {
+    const d = detectExcelKind(ws);
+    if (d && (!wanted || d.kind === wanted)) {
+      chosen = { ws, ...d };
       break;
     }
   }
-  if (headerRowNumber === -1) {
-    throw new Error("לא זוהתה שורת כותרות — האם זה קובץ לקוחות?");
+  if (!chosen) {
+    throw new Error(
+      wanted === "clients"
+        ? "לא נמצא גיליון עם כותרות לקוחות (שם, מספר…) בחוברת"
+        : wanted === "bank"
+          ? "לא נמצא גיליון דף חשבון (תאריך, פרטים, זכות…) בחוברת"
+          : "לא זוהה סוג הקובץ — לא נמצאו כותרות של דוח לקוחות או של דף חשבון באף גיליון"
+    );
   }
+  for (const other of [...wb.worksheets]) {
+    if (other.id !== chosen.ws.id) wb.removeWorksheet(other.id);
+  }
+  return chosen;
+}
+
+/** ממסך קובץ אקסל לקוחות. הפלט מכיל רק את גיליון הלקוחות, ממוסך. */
+export async function maskClientsExcel(buffer: Buffer): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  if (wb.worksheets.length === 0) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  const { ws, headerRowNumber } = selectAndIsolateSheet(wb, "clients");
+
+  const headerCells: { index: number; header: string }[] = [];
+  ws.getRow(headerRowNumber).eachCell({ includeEmpty: false }, (cell, col) => {
+    headerCells.push({ index: col, header: cellToText(cell) });
+  });
+  const columns: { index: number; field: ExcelClientField | null }[] =
+    buildColumnMapping(headerCells).columns;
 
   for (let r = headerRowNumber + 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);

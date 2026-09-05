@@ -155,13 +155,22 @@ export async function parseClientsWorkbook(
   const wb = new ExcelJS.Workbook();
   // exceljs מצהיר על טיפוס Buffer ישן — ההמרה בטוחה בפועל
   await wb.xlsx.load(buffer as unknown as ArrayBuffer);
-  const ws = wb.worksheets[0];
-  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  if (wb.worksheets.length === 0) throw new Error("הקובץ ריק — לא נמצא גיליון");
 
-  const headerRowNumber = findHeaderRow(ws);
-  if (headerRowNumber === null) {
+  // חוברת עם כמה גיליונות: בוחרים את הראשון שיש בו כותרות לקוחות
+  let ws: ExcelJS.Worksheet | null = null;
+  let headerRowNumber: number | null = null;
+  for (const candidate of wb.worksheets) {
+    const found = findHeaderRow(candidate);
+    if (found !== null) {
+      ws = candidate;
+      headerRowNumber = found;
+      break;
+    }
+  }
+  if (!ws || headerRowNumber === null) {
     throw new Error(
-      "לא זוהתה שורת כותרות — ודא שהקובץ מכיל את העמודות המוכרות (שם, מספר וכו')"
+      "לא זוהתה שורת כותרות באף גיליון — ודא שהקובץ מכיל את העמודות המוכרות (שם, מספר וכו')"
     );
   }
 

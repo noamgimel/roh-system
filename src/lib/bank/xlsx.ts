@@ -1,5 +1,10 @@
 import ExcelJS from "exceljs";
-import { parseBankTable, parseBankCsv, type ParsedBankFile } from "./csv";
+import {
+  parseBankTable,
+  parseBankCsv,
+  isBankHeaderRow,
+  type ParsedBankFile,
+} from "./csv";
 
 // דף חשבון בפורמט xlsx (הייצוא לאקסל מאתר הבנק) — מומר לטבלת תאים
 // ומוזן לאותה ליבה כמו ה-CSV. תאריכים ומספרים מנורמלים למחרוזות
@@ -47,9 +52,23 @@ export function worksheetToTable(ws: ExcelJS.Worksheet): string[][] {
 export async function parseBankXlsx(buffer: Buffer): Promise<ParsedBankFile> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer as unknown as ArrayBuffer);
-  const ws = wb.worksheets[0];
-  if (!ws) throw new Error("הקובץ ריק — לא נמצא גיליון");
-  return parseBankTable(worksheetToTable(ws), "xlsx");
+  if (wb.worksheets.length === 0) throw new Error("הקובץ ריק — לא נמצא גיליון");
+  // חוברת עם כמה גיליונות (הייצוא של הפועלים מגיע עם 3): הראשון שיש בו
+  // כותרות של דף חשבון הוא הנכון
+  let table: string[][] | null = null;
+  for (const ws of wb.worksheets) {
+    const t = worksheetToTable(ws);
+    if (t.slice(0, 20).some((row) => isBankHeaderRow(row))) {
+      table = t;
+      break;
+    }
+  }
+  if (!table) {
+    throw new Error(
+      "לא זוהתה שורת כותרות בקובץ — ודא שזה ייצוא של תנועות החשבון (תאריך, פרטים, זכות...)"
+    );
+  }
+  return parseBankTable(table, "xlsx");
 }
 
 /** מפזר לפי סיומת הקובץ — הנקודה היחידה שהשאר צריך להכיר. */
