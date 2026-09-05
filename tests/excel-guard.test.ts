@@ -1,13 +1,22 @@
 import { describe, it, expect } from "vitest";
 import ExcelJS from "exceljs";
-import { describeNotXlsx } from "@/lib/excel-guard";
+import { describeNotXlsx, isXlsxBuffer, looksLikeCsv } from "@/lib/excel-guard";
+import { buildBankCsvCp1255 } from "./helpers/fixtureBankCsv";
 
 describe("זיהוי קבצים שאינם xlsx אמיתיים", () => {
-  it("חוברת אקסל אמיתית עוברת", async () => {
+  it("חוברת אקסל אמיתית עוברת — גם בלי סיומת", async () => {
     const wb = new ExcelJS.Workbook();
     wb.addWorksheet("x").getRow(1).values = ["שם", "מספר", "טלפון"];
     const buf = Buffer.from(await wb.xlsx.writeBuffer());
     expect(describeNotXlsx(buf, "a.xlsx")).toBeNull();
+    expect(isXlsxBuffer(buf)).toBe(true); // לפי תוכן — השם לא משנה
+    expect(looksLikeCsv(buf)).toBe(false);
+  });
+
+  it("CSV בנקאי (cp1255) מזוהה כ-CSV לפי תוכן", () => {
+    const csv = buildBankCsvCp1255();
+    expect(looksLikeCsv(csv)).toBe(true);
+    expect(isXlsxBuffer(csv)).toBe(false);
   });
 
   it("קובץ Numbers עם סיומת xlsx מזוהה ומקבל הוראה לייצא", () => {

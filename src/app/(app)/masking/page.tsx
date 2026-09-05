@@ -25,10 +25,14 @@ export default function MaskingPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `masked-${f.name}`;
+      // שם הקובץ מגיע מהשרת עם הסיומת הנכונה (גם כשלמקור לא הייתה)
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const m = disposition.match(/filename="([^"]+)"/);
+      const outName = m ? decodeURIComponent(m[1]) : `masked-${f.name}`;
+      a.download = outName;
       a.click();
       URL.revokeObjectURL(url);
-      setDone(`הקובץ הממוסך ירד: masked-${f.name}`);
+      setDone(`הקובץ הממוסך ירד: ${outName}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "שגיאה במיסוך");
     } finally {
@@ -52,11 +56,11 @@ export default function MaskingPage() {
       <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
         <label className="block">
           <span className="block text-sm font-medium mb-2">
-            קובץ למיסוך — דוח לקוחות או דף חשבון (xlsx / csv, הסוג מזוהה לבד)
+            קובץ למיסוך — דוח לקוחות או דף חשבון (xlsx / csv). הסוג מזוהה
+            לפי התוכן, גם אם לקובץ אין סיומת
           </span>
           <input
             type="file"
-            accept=".xlsx,.xls,.csv"
             disabled={busy}
             onChange={(e) => {
               const f = e.target.files?.[0];

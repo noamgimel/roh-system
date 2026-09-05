@@ -3,7 +3,7 @@ import { sql } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { getActor } from "@/lib/auth/actor";
 import { maskExcelFile, maskBankCsvFile } from "@/lib/masking/files";
-import { describeNotXlsx } from "@/lib/excel-guard";
+import { describeNotXlsx, isXlsxBuffer, looksLikeCsv } from "@/lib/excel-guard";
 
 // כלי המיסוך — זמני לתקופת הפיתוח. עיבוד בזיכרון בלבד:
 // הקובץ לא נכתב לדיסק, לא נשמר ב-DB, ולא נשלח לשום שירות חיצוני.
@@ -18,32 +18,32 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const lower = file.name.toLowerCase();
 
-    if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-      const problem = describeNotXlsx(buffer, file.name);
-      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
-    }
-
+    // הסוג נקבע לפי התוכן, לא לפי הסיומת — macOS מסתיר סיומות, וקובץ
+    // שיוצא מ-Numbers/אקסל בלי סיומת עדיין צריך לעבוד.
     let masked: Buffer;
     let contentType: string;
     let kind = "csv";
-    if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-      // מזהה לבד: דוח לקוחות או דף חשבון שיוצא לאקסל
+    let outExt: string;
+    if (isXlsxBuffer(buffer)) {
       const result = await maskExcelFile(buffer);
       masked = result.masked;
       kind = result.kind;
       contentType =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    } else if (lower.endsWith(".csv")) {
+      outExt = ".xlsx";
+    } else if (looksLikeCsv(buffer)) {
       masked = maskBankCsvFile(buffer);
       contentType = "text/csv; charset=windows-1255";
+      outExt = ".csv";
     } else {
-      return NextResponse.json(
-        { error: "פורמט לא נתמך — העלה xlsx (לקוחות) או csv (בנק)" },
-        { status: 400 }
-      );
+      const problem =
+        describeNotXlsx(buffer, file.name) ??
+        "פורמט לא מזוהה — העלה חוברת אקסל (xlsx) או CSV";
+      return NextResponse.json({ error: problem }, { status: 400 });
     }
+    // שם הפלט תמיד עם הסיומת הנכונה, גם אם המקור הגיע בלי
+    const baseName = file.name.replace(/\.(xlsx|xls|csv|numbers)$/i, "");
 
     // ביומן נרשמת הפעולה בלבד — לעולם לא תוכן הקובץ
     await writeAudit(sql, {
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     return new Response(new Uint8Array(masked), {
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="masked-${encodeURIComponent(file.name)}"`,
+        "Content-Disposition": `attachment; filename="masked-${encodeURIComponent(baseName)}${outExt}"`,
         "Cache-Control": "no-store",
       },
     });
