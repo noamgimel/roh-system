@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { getActor } from "@/lib/auth/actor";
 import { maskExcelFile, maskBankCsvFile } from "@/lib/masking/files";
+import { describeNotXlsx } from "@/lib/excel-guard";
 
 // כלי המיסוך — זמני לתקופת הפיתוח. עיבוד בזיכרון בלבד:
 // הקובץ לא נכתב לדיסק, לא נשמר ב-DB, ולא נשלח לשום שירות חיצוני.
@@ -19,15 +20,9 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
 
-    // xlsx מוצפן בסיסמה נשמר כקובץ OLE (D0 CF 11 E0) ולא כ-zip — אי אפשר לקרוא אותו
-    if (buffer.subarray(0, 4).toString("hex") === "d0cf11e0") {
-      return NextResponse.json(
-        {
-          error:
-            "הקובץ מוגן בסיסמה. באקסל: קובץ ← סיסמאות ← נקה את השדות ← שמור בשם חדש, והעלה את הקובץ הלא-מוגן.",
-        },
-        { status: 400 }
-      );
+    if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+      const problem = describeNotXlsx(buffer, file.name);
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
     }
 
     let masked: Buffer;
