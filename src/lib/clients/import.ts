@@ -1,12 +1,15 @@
 import type { Sql } from "postgres";
 import type { ParsedWorkbook, ExcelClientField } from "./excel";
 import { writeAudit } from "@/lib/audit";
+import { savePendingRows } from "./pending";
 
 export interface ImportReport {
   totalRows: number;
   created: number;
   updated: number;
   skippedExisting: number; // קיימים שדולגו כשנבחר "ייבא רק חדשים"
+  skippedByName: number; // שורות שגויות שלקוח באותו שם כבר קיים (הושלמו בעבר)
+  pendingSaved: number; // שורות שגויות שנשמרו להשלמה ידנית במסך הייבוא
   failed: {
     rowNumber: number;
     errors: string[];
@@ -70,6 +73,8 @@ export async function importClients(
     created: 0,
     updated: 0,
     skippedExisting: 0,
+    skippedByName: 0,
+    pendingSaved: 0,
     failed: [],
     unmappedHeaders: parsed.unmappedHeaders,
   };
@@ -115,6 +120,24 @@ export async function importClients(
       else report.updated++;
     }
 
+    // שורות שנכשלו נשארות במסך הייבוא להשלמה ידנית — אלא אם לקוח
+    // באותו שם כבר קיים (כלומר הושלם ידנית בייבוא קודם)
+    const failedNames = report.failed.map((f) => f.name).filter(Boolean) as string[];
+    const existingByName = new Set(
+      failedNames.length
+        ? (await tx`select name from clients where name in ${tx(failedNames)}`).map(
+            (r) => r.name as string
+          )
+        : []
+    );
+    const toPend = report.failed.filter((f) => !(f.name && existingByName.has(f.name)));
+    report.skippedByName = report.failed.length - toPend.length;
+    report.pendingSaved = await savePendingRows(
+      tx,
+      toPend.map((f) => ({ rowNumber: f.rowNumber, errors: f.errors, data: f.data })),
+      opts.fileName ?? null
+    );
+
     await writeAudit(tx, {
       actor: opts.actor,
       action: "clients_import",
@@ -126,6 +149,7 @@ export async function importClients(
         updated: report.updated,
         skipped_existing: report.skippedExisting,
         failed: report.failed.length,
+        pending_saved: report.pendingSaved,
       },
     });
   });

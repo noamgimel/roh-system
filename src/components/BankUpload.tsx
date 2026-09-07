@@ -131,15 +131,21 @@ export default function BankUpload() {
           </div>
         )}
         {done && (
-          <div className="mt-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-            <div className="text-sm text-green-800">{done.message}</div>
-            {done.pendingInQueue > 0 && (
+          <div
+            ref={(el) => el?.scrollIntoView({ behavior: "smooth", block: "center" })}
+            className="mt-3 rounded-xl border-2 border-blue-300 bg-blue-50 px-5 py-4"
+          >
+            <div className="text-sm font-semibold text-green-800 mb-1">✓ הקליטה הושלמה</div>
+            <div className="text-sm text-slate-700 mb-3">{done.message}</div>
+            {done.pendingInQueue > 0 ? (
               <Link
                 href="/queue"
-                className="inline-block mt-2.5 px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-lg bg-blue-600 text-white text-base font-bold hover:bg-blue-700 shadow"
               >
-                המשך לתור האישורים ({done.pendingInQueue} ממתינות) ←
+                המשך לתור האישורים — {done.pendingInQueue} תנועות ממתינות ←
               </Link>
+            ) : (
+              <div className="text-sm text-slate-500">אין תנועות חדשות לאישור.</div>
             )}
           </div>
         )}

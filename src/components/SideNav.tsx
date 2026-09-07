@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 export interface NavItem {
   href: string;
   label: string;
+  badge?: number;
 }
 
 export default function SideNav({ items }: { items: NavItem[] }) {
@@ -30,7 +31,14 @@ export default function SideNav({ items }: { items: NavItem[] }) {
                 : "block px-5 py-2.5 text-sm text-slate-300 border-r-4 border-transparent hover:bg-slate-800 hover:text-white transition-colors"
             }
           >
-            {item.label}
+            <span className="flex items-center justify-between">
+              {item.label}
+              {item.badge ? (
+                <span className="text-[11px] font-bold bg-amber-400 text-slate-900 rounded-full px-2 py-0.5 leading-none">
+                  {item.badge}
+                </span>
+              ) : null}
+            </span>
           </Link>
         );
       })}

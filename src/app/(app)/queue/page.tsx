@@ -2,6 +2,7 @@ import { sql } from "@/lib/db";
 import { formatMoney, formatDate } from "@/lib/format";
 import SplitDialog from "@/components/SplitDialog";
 import ActionForm from "@/components/ActionForm";
+import ClientPicker from "@/components/ClientPicker";
 import {
   confirmMatchAction,
   clearMatchAction,
@@ -38,11 +39,12 @@ export default async function QueuePage() {
     order by t.txn_date desc limit 15
   `;
   const activeClients = await sql`
-    select id, name from clients where is_active order by name
+    select id, name, tax_id from clients where is_active order by name
   `;
   const clientOptions = activeClients.map((c) => ({
     id: c.id as string,
     name: c.name as string,
+    taxId: c.taxId as string,
   }));
 
   const matchedCount = pending.filter((t) => t.status === "matched").length;
@@ -99,9 +101,9 @@ export default async function QueuePage() {
                   {t.parsedPayerName ? (
                     <span title={(t.details as string) ?? undefined}>
                       {t.parsedPayerName as string}
-                      {t.parsedBankKey ? (
-                        <span className="block text-xs text-slate-400" dir="ltr">
-                          {t.parsedBankKey as string}
+                      {(t.parsedBankKey || t.parsedPayerAccount) ? (
+                        <span className="block text-xs text-slate-400" dir="ltr" title="מזהה חשבון המשלם — נלמד אחרי אישור">
+                          {(t.parsedBankKey as string) ?? `חשבון ${t.parsedPayerAccount as string}`}
                         </span>
                       ) : null}
                     </span>
@@ -133,21 +135,14 @@ export default async function QueuePage() {
                   ) : (
                     <ActionForm action={confirmMatchAction} className="flex items-center gap-1.5">
                       <input type="hidden" name="txnId" value={t.id as string} />
-                      <select
+                      <ClientPicker
+                        key={`${t.id}:${t.matchedClientId ?? ""}`}
                         name="clientId"
                         required
-                        key={`${t.id}:${t.matchedClientId ?? ""}`}
+                        clients={clientOptions}
                         defaultValue={(t.matchedClientId as string) ?? ""}
-                        className="px-2 py-1 rounded-md border border-slate-300 bg-white text-xs max-w-44"
-                        title={(t.matchReason as string) ?? undefined}
-                      >
-                        <option value="">— בחר לקוח —</option>
-                        {clientOptions.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                        className="w-48"
+                      />
                       <button className="px-2.5 py-1 rounded-md bg-slate-800 text-white text-xs hover:bg-slate-700">
                         שייך
                       </button>

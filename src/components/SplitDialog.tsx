@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { splitAction } from "@/app/(app)/queue/actions";
 import { showToast } from "@/components/toast/store";
+import ClientPicker from "@/components/ClientPicker";
 
 interface ClientOption {
   id: string;
@@ -86,18 +87,12 @@ export default function SplitDialog({
         <div className="space-y-2">
           {parts.map((p, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <select
+              <ClientPicker
+                clients={clients}
                 value={p.clientId}
-                onChange={(e) => setPart(i, { clientId: e.target.value })}
-                className="flex-1 px-2 py-1.5 rounded-md border border-slate-300 text-sm"
-              >
-                <option value="">— בחר לקוח —</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => setPart(i, { clientId: id })}
+                className="flex-1"
+              />
               <input
                 type="number"
                 step="0.01"

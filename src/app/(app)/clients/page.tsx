@@ -26,6 +26,12 @@ export default async function ClientsPage({
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">לקוחות</h1>
         <div className="flex gap-2">
+          <Link
+            href="/import"
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100"
+          >
+            ייבוא לקוחות
+          </Link>
           <a
             href="/api/clients/export"
             className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm hover:bg-slate-100"

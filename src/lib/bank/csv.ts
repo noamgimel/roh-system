@@ -251,10 +251,21 @@ export function parseBankTable(
       continue;
     }
 
+    // הפועלים דוחס לעיתים את תאריך הערך לתוך שם הפעולה:
+    // "הוראת-קבע (תאריך ערך: 01/09)" — משלימים את השנה מתאריך התנועה
+    let valueDate = parseIsraeliDate(raw.valueDate ?? "");
+    if (!valueDate) {
+      const m = (raw.description ?? "").match(/תאריך ערך:\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+      if (m) {
+        const year = m[3] ? (m[3].length === 2 ? `20${m[3]}` : m[3]) : txnDate.slice(0, 4);
+        valueDate = parseIsraeliDate(`${m[1]}/${m[2]}/${year}`);
+      }
+    }
+
     const row: BankCsvRow = {
       rowNumber: i + 1,
       txnDate,
-      valueDate: parseIsraeliDate(raw.valueDate ?? ""),
+      valueDate,
       description: raw.description?.trim() || null,
       details: raw.details?.trim() || null,
       account: raw.account?.trim() || null,

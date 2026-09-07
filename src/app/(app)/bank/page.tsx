@@ -21,6 +21,10 @@ export default async function BankPage() {
   const batches = await sql`
     select * from import_batches order by created_at desc limit 10
   `;
+  const [{ count: queueCount }] = await sql`
+    select count(*)::int as count from bank_transactions
+    where status in ('new', 'needs_review', 'matched')
+  `;
   const transactions = await sql`
     select t.*, c.name as matched_client_name,
       (select string_agg(cl.name, ', ')
@@ -34,7 +38,17 @@ export default async function BankPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">קליטת דף חשבון</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold">קליטת דף חשבון</h1>
+        {(queueCount as number) > 0 && (
+          <Link
+            href="/queue"
+            className="px-4 py-2 rounded-lg bg-amber-400 text-slate-900 text-sm font-bold hover:bg-amber-300"
+          >
+            {queueCount as number} תנועות ממתינות בתור ←
+          </Link>
+        )}
+      </div>
       <p className="text-sm text-slate-500 mb-6 max-w-2xl">
         ייצוא ידני מאתר הבנק בלבד (עובר ושב ← מידע ← תנועות בחשבון ← ייצוא
         CSV). מעובדות רק שורות זכות; תנועה שנקלטה בעבר לא תיקלט שוב.
