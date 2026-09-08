@@ -16,7 +16,8 @@
     "reparse": "tsx scripts/reparse-payers.ts",
     "create-user": "tsx scripts/create-user.ts",
     "demo:fixtures": "tsx scripts/make-demo.ts",
-    "demo:reset": "tsx scripts/demo-reset.ts"
+    "demo:reset": "tsx scripts/demo-reset.ts",
+    "demo:preflight": "tsx scripts/demo-preflight.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

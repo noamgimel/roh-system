@@ -30,7 +30,7 @@ async function main() {
     }
     // 3. חיוב חודשי
     const charges = await runMonthlyCharges(sql, { actor: "dryrun" });
-    log(`חיוב חודשי: נוצרו ${charges.created} (מצופה 6)`);
+    log(`חיוב חודשי: נוצרו ${charges.created} (מצופה 12)`);
 
     // 4. דף חשבון 1
     const bank1 = parseBankCsv(fs.readFileSync("fixtures/demo-bank-1.csv"));
