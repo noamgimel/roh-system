@@ -54,6 +54,11 @@ async function main() {
     check(fs.existsSync(f), `${f} קיים`, `${f} חסר → npm run demo:fixtures`);
   }
 
+  // ערכת הדמו על הנתונים הממוסכים (אם קיימת)
+  const demoDir = `${process.env.HOME}/Documents/roh-vault/masked/demo`;
+  const realDemo = ["clients-demo.xlsx", "bank-part1.xlsx", "bank-part2.xlsx"].every((f) => fs.existsSync(`${demoDir}/${f}`));
+  ok.push(realDemo ? "ערכת הדמו על הנתונים הממוסכים קיימת (~/Documents/roh-vault/masked/demo)" : "אין ערכת דמו ממוסכת — לדמו על נתוני עידן הרץ npm run demo:real");
+
   // build + שרת
   check(fs.existsSync(".next/BUILD_ID"), "build קיים", "אין build → npm run build");
   let serverUp = false;
